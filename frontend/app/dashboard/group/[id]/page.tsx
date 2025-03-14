@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -20,58 +21,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
-import { MapPin, MessageSquare, Users, Settings, Share2, Copy, Send, AlertTriangle, Wifi, WifiOff } from "lucide-react"
-
-// Mock data for the group
-const GROUP_DATA = {
-  id: "1",
-  name: "Road Trip to California",
-  members: [
-    {
-      id: "1",
-      name: "You",
-      avatar: "/placeholder.svg?height=40&width=40",
-      isOnline: true,
-      isYou: true,
-      lastLocation: { lat: 34.052235, lng: -118.243683 },
-    },
-    {
-      id: "2",
-      name: "Alex Johnson",
-      avatar: "/placeholder.svg?height=40&width=40",
-      isOnline: true,
-      isYou: false,
-      lastLocation: { lat: 34.053235, lng: -118.245683 },
-    },
-    {
-      id: "3",
-      name: "Maria Garcia",
-      avatar: "/placeholder.svg?height=40&width=40",
-      isOnline: true,
-      isYou: false,
-      lastLocation: { lat: 34.051235, lng: -118.242683 },
-    },
-    {
-      id: "4",
-      name: "James Smith",
-      avatar: "/placeholder.svg?height=40&width=40",
-      isOnline: false,
-      isYou: false,
-      lastLocation: { lat: 34.050235, lng: -118.241683 },
-    },
-    {
-      id: "5",
-      name: "Sarah Wilson",
-      avatar: "/placeholder.svg?height=40&width=40",
-      isOnline: true,
-      isYou: false,
-      lastLocation: { lat: 34.054235, lng: -118.246683 },
-    },
-  ],
-  inviteCode: "TRIP2025",
-  distanceThreshold: 500, // in meters
-  createdAt: "2025-01-15T10:30:00Z",
-}
+import { MapPin, MessageSquare, Users, Settings, Copy, Send, AlertTriangle, Wifi, WifiOff } from "lucide-react"
+import { useUser } from "@clerk/nextjs"
+import { redirect } from "next/navigation"
+import { useGroups } from "@/contexts/group-context"
+import { useToast } from "@/hooks/use-toast"
 
 // Mock chat messages
 const INITIAL_MESSAGES = [
@@ -88,27 +42,58 @@ const INITIAL_MESSAGES = [
   },
 ]
 
-export default function GroupPage({ params }: { params: { id: string } }) {
+export default function GroupPage() {
+  const { user, isLoaded } = useUser()
+  const params = useParams()
+  const router = useRouter()
+  const { getGroup, updateGroupSettings } = useGroups()
+  const { toast } = useToast()
+
+  const groupId = params.id as string
+  const group = getGroup(groupId)
+
   const [activeTab, setActiveTab] = useState("map")
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [newMessage, setNewMessage] = useState("")
-  const [distanceThreshold, setDistanceThreshold] = useState(GROUP_DATA.distanceThreshold)
+  const [distanceThreshold, setDistanceThreshold] = useState(group?.distanceThreshold || 500)
   const [autoNotify, setAutoNotify] = useState(true)
   const [shareLocation, setShareLocation] = useState(true)
   const [notifications, setNotifications] = useState([
     { id: "1", type: "distance", member: "James Smith", timestamp: "10:45 AM" },
     { id: "2", type: "offline", member: "James Smith", timestamp: "10:46 AM" },
   ])
+  const [isSaving, setIsSaving] = useState(false)
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 
   const mapRef = useRef(null)
-  const messagesEndRef = useRef(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (isLoaded && !user) {
+      redirect("/sign-in")
+    }
+  }, [isLoaded, user])
+
+  // Redirect if group not found
+  useEffect(() => {
+    if (isLoaded && !group) {
+      toast({
+        title: "Error",
+        description: "Group not found",
+        variant: "destructive",
+      })
+      router.push("/dashboard")
+    }
+  }, [isLoaded, group, router, toast])
 
   // Scroll to bottom of messages
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
-  }, [])
+  }, [messages, activeTab])
 
   // In a real app, this would initialize the map with Mapbox or Google Maps
   useEffect(() => {
@@ -131,23 +116,76 @@ export default function GroupPage({ params }: { params: { id: string } }) {
     }
   }
 
+  const handleSaveSettings = async () => {
+    if (!group) return
+
+    setIsSaving(true)
+    try {
+      await updateGroupSettings(groupId, {
+        distanceThreshold,
+      })
+      toast({
+        title: "Success",
+        description: "Group settings updated successfully!",
+      })
+      setSettingsDialogOpen(false)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update group settings. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const copyToClipboard = (text: string, successMessage: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        toast({
+          title: "Copied!",
+          description: successMessage,
+        })
+      },
+      () => {
+        toast({
+          title: "Error",
+          description: "Failed to copy to clipboard",
+          variant: "destructive",
+        })
+      },
+    )
+  }
+
   const getMemberById = (id: string) => {
-    return GROUP_DATA.members.find((member) => member.id === id)
+    return group?.members.find((member) => member.id === id)
+  }
+
+  if (!isLoaded || !group) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background">
+      <header className="sticky top-16 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4">
             <MapPin className="h-5 w-5 text-primary" />
             <div>
-              <h1 className="text-lg font-bold">{GROUP_DATA.name}</h1>
-              <p className="text-xs text-muted-foreground">{GROUP_DATA.members.length} members</p>
+              <h1 className="text-lg font-bold">{group.name}</h1>
+              <p className="text-xs text-muted-foreground">{group.members.length} members</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Dialog>
+            <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Users className="h-4 w-4 mr-2" />
@@ -156,7 +194,7 @@ export default function GroupPage({ params }: { params: { id: string } }) {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Invite People to {GROUP_DATA.name}</DialogTitle>
+                  <DialogTitle>Invite People to {group.name}</DialogTitle>
                   <DialogDescription>
                     Share this code or link with people you want to invite to your group.
                   </DialogDescription>
@@ -165,8 +203,12 @@ export default function GroupPage({ params }: { params: { id: string } }) {
                   <div className="grid gap-2">
                     <Label>Invite Code</Label>
                     <div className="flex items-center gap-2">
-                      <Input value={GROUP_DATA.inviteCode} readOnly />
-                      <Button variant="outline" size="icon">
+                      <Input value={group.inviteCode} readOnly />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(group.inviteCode, "Invite code copied to clipboard!")}
+                      >
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
@@ -174,23 +216,29 @@ export default function GroupPage({ params }: { params: { id: string } }) {
                   <div className="grid gap-2">
                     <Label>Invite Link</Label>
                     <div className="flex items-center gap-2">
-                      <Input value={`https://grouptrack.app/join/${GROUP_DATA.inviteCode}`} readOnly />
-                      <Button variant="outline" size="icon">
+                      <Input value={`https://grouptrack.app/join/${group.inviteCode}`} readOnly />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() =>
+                          copyToClipboard(
+                            `https://grouptrack.app/join/${group.inviteCode}`,
+                            "Invite link copied to clipboard!",
+                          )
+                        }
+                      >
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share Invite
-                  </Button>
+                  <Button onClick={() => setInviteDialogOpen(false)}>Done</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
 
-            <Dialog>
+            <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Settings className="h-4 w-4 mr-2" />
@@ -236,7 +284,9 @@ export default function GroupPage({ params }: { params: { id: string } }) {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button>Save Settings</Button>
+                  <Button onClick={handleSaveSettings} disabled={isSaving}>
+                    {isSaving ? "Saving..." : "Save Settings"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -280,7 +330,7 @@ export default function GroupPage({ params }: { params: { id: string } }) {
 
                   {/* Sample map markers */}
                   <TooltipProvider>
-                    {GROUP_DATA.members.map((member, index) => (
+                    {group.members.map((member, index) => (
                       <Tooltip key={member.id}>
                         <TooltipTrigger asChild>
                           <div
@@ -418,7 +468,7 @@ export default function GroupPage({ params }: { params: { id: string } }) {
               <div className="space-y-4">
                 <h2 className="text-xl font-bold">Group Members</h2>
                 <div className="grid gap-4">
-                  {GROUP_DATA.members.map((member) => (
+                  {group.members.map((member) => (
                     <Card key={member.id}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
@@ -445,7 +495,18 @@ export default function GroupPage({ params }: { params: { id: string } }) {
                               )}
                             </p>
                           </div>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setActiveTab("chat")
+                              // In a real app, this would open a direct message with the member
+                              toast({
+                                title: "Chat opened",
+                                description: `Opening chat with ${member.name}`,
+                              })
+                            }}
+                          >
                             Message
                           </Button>
                         </div>
