@@ -1,37 +1,13 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { MapPin, Users, MessageSquare, Bell } from "lucide-react"
+import { auth } from "@clerk/nextjs"
 
 export default function Home() {
+  const { userId } = auth()
+
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="border-b">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">GroupTrack</span>
-          </div>
-          <nav className="hidden md:flex gap-6">
-            <Link href="#features" className="text-sm font-medium hover:underline underline-offset-4">
-              Features
-            </Link>
-            <Link href="#how-it-works" className="text-sm font-medium hover:underline underline-offset-4">
-              How It Works
-            </Link>
-            <Link href="#faq" className="text-sm font-medium hover:underline underline-offset-4">
-              FAQ
-            </Link>
-          </nav>
-          <div className="flex items-center gap-4">
-            <Link href="/signin">
-              <Button variant="outline">Sign In</Button>
-            </Link>
-            <Link href="/signup">
-              <Button>Get Started</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32">
           <div className="container px-4 md:px-6">
@@ -47,11 +23,19 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Link href="/signup">
-                    <Button size="lg" className="px-8">
-                      Start Tracking Now
-                    </Button>
-                  </Link>
+                  {userId ? (
+                    <Link href="/dashboard">
+                      <Button size="lg" className="px-8">
+                        Go to Dashboard
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href="/sign-up">
+                      <Button size="lg" className="px-8">
+                        Start Tracking Now
+                      </Button>
+                    </Link>
+                  )}
                   <Link href="#how-it-works">
                     <Button size="lg" variant="outline" className="px-8">
                       Learn More
@@ -251,7 +235,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Link href="/signup">
+                <Link href="/sign-up">
                   <Button size="lg" className="px-8">
                     Sign Up Free
                   </Button>
