@@ -1,11 +1,14 @@
 import express from "express";
+// const bodyParser = require("body-parser");
 
 const app = express();
+const port = 3000;
+
 
 app.get('/', (req, res) => {
-    res.send('server is working on port 2000');
+    res.send(`server is working on port ${port}`);
 });
 
-app.listen('2000', () => {
-    console.log('server is running on port 2000');
+app.listen(port, () => {
+    console.log(`server is running on port ${port}`);
 });
