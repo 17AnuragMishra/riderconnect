@@ -1,7 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import { ClerkProvider } from "@clerk/nextjs"
 import "./globals.css"
+import Navbar from "@/components/navbar"
+import { Toaster } from "@/components/ui/toaster"
+import { GroupProvider } from "@/contexts/group-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,12 +21,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          <GroupProvider>
+            <Navbar />
+            {children}
+            <Toaster />
+          </GroupProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }
 
-
-
-import './globals.css'
