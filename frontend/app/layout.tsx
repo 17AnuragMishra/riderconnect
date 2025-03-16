@@ -6,6 +6,7 @@ import "./globals.css"
 import Navbar from "@/components/navbar"
 import { Toaster } from "@/components/ui/toaster"
 import { GroupProvider } from "@/contexts/group-context"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -24,11 +25,13 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={inter.className}>
-          <GroupProvider>
-            <Navbar />
-            {children}
-            <Toaster />
-          </GroupProvider>
+          <ThemeProvider>
+            <GroupProvider>
+              <Navbar />
+              {children}
+              <Toaster />
+            </GroupProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>
