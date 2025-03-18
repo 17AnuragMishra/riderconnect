@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MapPin, Users, Bell } from "lucide-react"
 import { useUser, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -57,6 +58,8 @@ export default function Navbar() {
               }}
             />
 
+            <ThemeToggle />
+
             {/* Mobile menu for smaller screens */}
             <div className="md:hidden">
               <DropdownMenu>
@@ -104,6 +107,7 @@ export default function Navbar() {
               <Link href="/sign-up">
                 <Button>Sign Up</Button>
               </Link>
+              <ThemeToggle />
             </div>
           </SignedOut>
         </div>
