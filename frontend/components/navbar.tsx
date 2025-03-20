@@ -23,7 +23,7 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           <MapPin className="h-6 w-6 text-primary" />
           <Link href="/" className="text-xl font-bold">
-            GroupTrack
+            RiderConnect
           </Link>
         </div>
 
