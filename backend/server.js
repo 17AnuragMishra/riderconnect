@@ -20,7 +20,7 @@ app.use(express.json());
 const connectDB = async () => {
     try {
         await mongoose.connect(process.env.MONGO_URI);
-        console.log('MongoDB connected to Atlas');
+        console.log('MongoDB connected');
     } catch (err) {
         console.error('MongoDB connection error:', err);
         process.exit(1);
@@ -31,30 +31,21 @@ connectDB();
 const users = {};
 const groupSockets = {};
 
-const generateUniqueCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
-
-// APIs
 app.post('/groups/create', async (req, res) => {
     const { name, source, destination, clerkId, clerkName, clerkAvatar } = req.body;
-    let code;
-    let attempts = 0;
-    do {
-        code = generateUniqueCode();
-        attempts++;
-        if (attempts > 10) return res.status(500).json({ error: 'Failed to generate unique code' });
-    } while (await Group.findOne({ code }));
-
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     try {
         const group = new Group({
             name,
-            code,
             source,
             destination,
-            members: [{ clerkId, name: clerkName, avatar: clerkAvatar }],
+            code,
             createdBy: clerkId,
+            members: [{ clerkId, name: clerkName, avatar: clerkAvatar }]
         });
         await group.save();
-        res.status(201).json({ id: group._id.toString(), name, code, source, destination, members: group.members });
+        console.log("Created group in DB:", group); // Debug log
+        res.json(group);
     } catch (err) {
         console.error('Create group error:', err);
         res.status(500).json({ error: err.message });
@@ -81,10 +72,11 @@ app.post('/groups/join', async (req, res) => {
 app.get('/groups', async (req, res) => {
     const { clerkId } = req.query;
     try {
-        const groups = await Group.find({ $or: [{ createdBy: clerkId }, { 'members.clerkId': clerkId }] });
+        const groups = await Group.find({ "members.clerkId": clerkId });
+        console.log("Groups for clerkId", clerkId, ":", groups);
         res.json(groups);
     } catch (err) {
-        console.error('Fetch groups error:', err);
+        console.error('Get groups error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -93,8 +85,12 @@ app.delete('/groups/:id', async (req, res) => {
     const { id } = req.params;
     const { clerkId } = req.query;
     try {
-        const group = await Group.findOneAndDelete({ _id: id, createdBy: clerkId });
-        if (!group) return res.status(404).json({ error: 'Group not found or not authorized' });
+        const group = await Group.findOne({ _id: id });
+        if (!group) return res.status(404).json({ error: 'Group not found' });
+        if (!group.members.some(m => m.clerkId === clerkId)) {
+            return res.status(403).json({ error: 'Not authorized to delete this group' });
+        }
+        await Group.deleteOne({ _id: id });
         await Message.deleteMany({ groupId: id });
         await UserLocation.deleteMany({ groupId: id });
         res.json({ success: true });
