@@ -1,13 +1,12 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useEffect, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -16,154 +15,202 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { MapPin, MessageSquare, Users, Settings, Copy, Send, AlertTriangle, Wifi, WifiOff } from "lucide-react"
-import { useUser } from "@clerk/nextjs"
-import { redirect } from "next/navigation"
-import { useGroups } from "@/contexts/group-context"
-import { useToast } from "@/hooks/use-toast"
-import MapComponent from "@/components/Map"
+} from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { MapPin, MessageSquare, Users, Settings, Copy, Send, AlertTriangle, Wifi, WifiOff } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+import { useGroups } from "@/contexts/group-context";
+import { useToast } from "@/hooks/use-toast";
+import MapComponent from "@/components/Map";
+import axios from "axios";
+import io from "socket.io-client";
 
-// Mock chat messages
-const INITIAL_MESSAGES = [
-  { id: "1", sender: "2", content: "Hey everyone! I'm at the gas station now.", timestamp: "10:30 AM" },
-  { id: "2", sender: "3", content: "I'll be there in 5 minutes.", timestamp: "10:32 AM" },
-  { id: "4", sender: "1", content: "Great! I'm waiting in the parking lot.", timestamp: "10:33 AM" },
-  { id: "5", sender: "5", content: "Just left home, ETA 15 minutes.", timestamp: "10:35 AM" },
-  { id: "6", sender: "2", content: "The traffic is pretty bad on the highway.", timestamp: "10:40 AM" },
-  {
-    id: "7",
-    sender: "4",
-    content: "I might lose signal in the tunnel, don't worry if I disappear for a bit.",
-    timestamp: "10:42 AM",
-  },
-]
+const socket = io("http://localhost:5000", { autoConnect: false });
+
+interface Message {
+  _id: string;
+  groupId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+}
+
+interface Member {
+  clerkId: string;
+  name: string;
+  avatar?: string;
+  isOnline?: boolean;
+}
+
+interface Group {
+  _id: string;
+  name: string;
+  code: string;
+  source: string;
+  destination: string;
+  members: Member[];
+  createdBy: string;
+  distanceThreshold?: number;
+}
 
 export default function GroupPage() {
-  const { user, isLoaded } = useUser()
-  const params = useParams()
-  const router = useRouter()
-  const { getGroup, updateGroupSettings } = useGroups()
-  const { toast } = useToast()
+  const { user, isLoaded } = useUser();
+  const params = useParams();
+  const router = useRouter();
+  const { getGroup, updateGroupSettings } = useGroups();
+  const { toast } = useToast();  
+  const groupId = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : null;
+  if (!groupId) {
+    toast({ title: "Error", description: "Invalid group ID", variant: "destructive" });
+    router.push("/dashboard");
+    return null;
+  }
+  const [group, setGroup] = useState<Group | null>(null);
+  const [isFetching, setIsFetching] = useState(true); // New loading state
+  const [activeTab, setActiveTab] = useState("chat");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [distanceThreshold, setDistanceThreshold] = useState<number>(500);
+  const [autoNotify, setAutoNotify] = useState(true);
+  const [shareLocation, setShareLocation] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
-  const groupId = params.id as string
-  const group = getGroup(groupId)
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
 
-  const [activeTab, setActiveTab] = useState("map")
-  const [messages, setMessages] = useState(INITIAL_MESSAGES)
-  const [newMessage, setNewMessage] = useState("")
-  const [distanceThreshold, setDistanceThreshold] = useState(group?.distanceThreshold || 500)
-  const [autoNotify, setAutoNotify] = useState(true)
-  const [shareLocation, setShareLocation] = useState(true)
-  const [notifications, setNotifications] = useState([
-    { id: "1", type: "distance", member: "James Smith", timestamp: "10:45 AM" },
-    { id: "2", type: "offline", member: "James Smith", timestamp: "10:46 AM" },
-  ])
-  const [isSaving, setIsSaving] = useState(false)
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
-
-  const mapRef = useRef(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Redirect if not authenticated
   useEffect(() => {
-    if (isLoaded && !user) {
-      redirect("/sign-in")
-    }
-  }, [isLoaded, user])
+    if (!user || !groupId || !isLoaded) return;
 
-  // Redirect if group not found
-  useEffect(() => {
-    if (isLoaded && !group) {
-      toast({
-        title: "Error",
-        description: "Group not found",
-        variant: "destructive",
-      })
-      router.push("/dashboard")
-    }
-  }, [isLoaded, group, router, toast])
+    const fetchGroup = async () => {
+      setIsFetching(true);
+      console.log("Fetching group with ID:", groupId);
+      try {
+        let fetchedGroup = getGroup(groupId);
+        console.log("Group from context:", fetchedGroup);
+        if (!fetchedGroup) {
+          const res = await axios.get(`http://localhost:5000/groups?clerkId=${user.id}`);
+          console.log("Backend response:", res.data);
+          fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
+          console.log("Found group from backend:", fetchedGroup);
+        }
+        if (!fetchedGroup) {
+          toast({ title: "Error", description: "Group not found", variant: "destructive" });
+          router.push("/dashboard");
+          return;
+        }
+        setGroup(fetchedGroup);
+        setDistanceThreshold(fetchedGroup?.distanceThreshold || 500);
+      } catch (err) {
+        console.error("Failed to fetch group:", err);
+        toast({ title: "Error", description: "Failed to load group", variant: "destructive" });
+        router.push("/dashboard");
+      } finally {
+        setIsFetching(false);
+      }
+    };
 
-  // Scroll to bottom of messages
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [messages, activeTab])
+    fetchGroup();
+  }, [user, groupId, isLoaded, getGroup, toast, router]);
 
-  // In a real app, this would initialize the map with Mapbox or Google Maps
   useEffect(() => {
-    if (mapRef.current && activeTab === "map") {
-      // Initialize map here
-      console.log("Map initialized")
+    if (isLoaded && !user) redirect("/sign-in");
+  }, [isLoaded, user]);
+
+  useEffect(() => {
+    if (isLoaded && !isFetching && group === null) {
+      toast({ title: "Error", description: "Group not found", variant: "destructive" });
+      router.push("/dashboard");
     }
-  }, [activeTab])
+  }, [isLoaded, isFetching, group, router, toast]);
+
+  useEffect(() => {
+    if (!user || !groupId || initialized.current) return;
+
+    const fetchMessages = async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/messages/group/${groupId}`);
+        setMessages(res.data.data);
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+        toast({ title: "Error", description: "Failed to load messages", variant: "destructive" });
+      }
+    };
+    fetchMessages();
+
+    socket.connect();
+    socket.emit("join", { clerkId: user.id, groupId });
+
+    socket.on("receiveMessage", (message: Message) => {
+      console.log("Received message:", message);
+      setMessages((prev) => [...prev, message]);
+    });
+
+    socket.on("error", (err) => {
+      console.error("Socket error:", err);
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    });
+
+    initialized.current = true;
+
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("error");
+      socket.disconnect();
+      initialized.current = false;
+    };
+  }, [user, groupId, toast]);
+
+  useEffect(() => {
+    if (messagesEndRef.current && activeTab === "chat") {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, activeTab]);
 
   const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const newMsg = {
-        id: `${messages.length + 1}`,
-        sender: "1", // Current user
-        content: newMessage,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      }
-      setMessages([...messages, newMsg])
-      setNewMessage("")
-    }
-  }
+    if (!newMessage.trim() || !user) return;
+
+    const messageData = {
+      groupId,
+      clerkId: user.id,
+      clerkName: user.firstName || "User",
+      content: newMessage,
+    };
+
+    console.log("Sending message:", messageData);
+    socket.emit("sendMessage", messageData);
+    setNewMessage("");
+  };
 
   const handleSaveSettings = async () => {
-    if (!group) return
-
-    setIsSaving(true)
+    if (!group || !groupId) return;
+    setIsSaving(true);
     try {
-      await updateGroupSettings(groupId, {
-        distanceThreshold,
-      })
-      toast({
-        title: "Success",
-        description: "Group settings updated successfully!",
-      })
-      setSettingsDialogOpen(false)
+      await updateGroupSettings(groupId, { distanceThreshold });
+      toast({ title: "Success", description: "Group settings updated successfully!" });
+      setSettingsDialogOpen(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update group settings. Please try again.",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to update settings", variant: "destructive" });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const copyToClipboard = (text: string, successMessage: string) => {
     navigator.clipboard.writeText(text).then(
-      () => {
-        toast({
-          title: "Copied!",
-          description: successMessage,
-        })
-      },
-      () => {
-        toast({
-          title: "Error",
-          description: "Failed to copy to clipboard",
-          variant: "destructive",
-        })
-      },
-    )
-  }
+      () => toast({ title: "Copied!", description: successMessage }),
+      () => toast({ title: "Error", description: "Failed to copy", variant: "destructive" })
+    );
+  };
 
-  const getMemberById = (id: string) => {
-    return group?.members.find((member) => member.id === id)
-  }
-
-  if (!isLoaded || !group) {
+  if (!isLoaded || isFetching) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -171,7 +218,11 @@ export default function GroupPage() {
           <p className="mt-4">Loading...</p>
         </div>
       </div>
-    )
+    );
+  }
+
+  if (!group) {
+    return null; // Redirect will handle this
   }
 
   return (
@@ -196,37 +247,17 @@ export default function GroupPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Invite People to {group.name}</DialogTitle>
-                  <DialogDescription>
-                    Share this code or link with people you want to invite to your group.
-                  </DialogDescription>
+                  <DialogDescription>Share this code or link to invite others.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
                     <Label>Invite Code</Label>
                     <div className="flex items-center gap-2">
-                      <Input value={group.inviteCode} readOnly />
+                      <Input value={group.code} readOnly />
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => copyToClipboard(group.inviteCode, "Invite code copied to clipboard!")}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Invite Link</Label>
-                    <div className="flex items-center gap-2">
-                      <Input value={`https://grouptrack.app/join/${group.inviteCode}`} readOnly />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() =>
-                          copyToClipboard(
-                            `https://grouptrack.app/join/${group.inviteCode}`,
-                            "Invite link copied to clipboard!",
-                          )
-                        }
+                        onClick={() => copyToClipboard(group.code, "Invite code copied!")}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -249,7 +280,7 @@ export default function GroupPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Group Settings</DialogTitle>
-                  <DialogDescription>Configure tracking and notification settings for this group.</DialogDescription>
+                  <DialogDescription>Configure tracking and notification settings.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
@@ -261,26 +292,9 @@ export default function GroupPage() {
                       step={100}
                       onValueChange={(value) => setDistanceThreshold(value[0])}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Get notified when group members are more than {distanceThreshold} meters apart.
-                    </p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Auto Notifications</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Automatically notify the group about distance and connection issues.
-                      </p>
-                    </div>
-                    <Switch checked={autoNotify} onCheckedChange={setAutoNotify} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Share My Location</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Allow others in the group to see your real-time location.
-                      </p>
-                    </div>
+                    <Label>Share My Location</Label>
                     <Switch checked={shareLocation} onCheckedChange={setShareLocation} />
                   </div>
                 </div>
@@ -318,53 +332,21 @@ export default function GroupPage() {
 
           <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
-              <div className="flex flex-col gap-4">
-                <MapComponent />
-                {/* Notifications */}
-                {notifications.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-medium">Recent Alerts</h3>
-                    <div className="space-y-2">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
-                            notification.type === "distance"
-                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"
-                              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
-                          }`}
-                        >
-                          {notification.type === "distance" ? (
-                            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                          ) : (
-                            <WifiOff className="h-4 w-4 flex-shrink-0" />
-                          )}
-                          <span>
-                            <strong>{notification.member}</strong>{" "}
-                            {notification.type === "distance" ? "is too far from the group" : "lost connection"}
-                          </span>
-                          <span className="ml-auto text-xs opacity-70">{notification.timestamp}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <MapComponent locations={[]} />
             </TabsContent>
 
             <TabsContent value="chat" className="mt-0">
               <div className="flex flex-col h-[70vh]">
                 <div className="flex-1 overflow-y-auto mb-4 space-y-4">
                   {messages.map((message) => {
-                    const sender = getMemberById(message.sender)
-                    const isYou = sender?.isYou
+                    const isYou = message.senderId === user?.id;
 
                     return (
-                      <div key={message.id} className={`flex ${isYou ? "justify-end" : "justify-start"}`}>
+                      <div key={message._id} className={`flex ${isYou ? "justify-end" : "justify-start"}`}>
                         <div className={`flex gap-2 max-w-[80%] ${isYou ? "flex-row-reverse" : "flex-row"}`}>
                           <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage src={sender?.avatar} alt={sender?.name} />
-                            <AvatarFallback>{sender?.name.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={group.members.find((m: Member) => m.clerkId === message.senderId)?.avatar} />
+                            <AvatarFallback>{message.senderName.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div
@@ -379,14 +361,14 @@ export default function GroupPage() {
                                 isYou ? "justify-end" : "justify-start"
                               }`}
                             >
-                              <span>{isYou ? "You" : sender?.name}</span>
+                              <span>{isYou ? "You" : message.senderName}</span>
                               <span>•</span>
-                              <span>{message.timestamp}</span>
+                              <span>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                             </div>
                           </div>
                         </div>
                       </div>
-                    )
+                    );
                   })}
                   <div ref={messagesEndRef} />
                 </div>
@@ -395,8 +377,8 @@ export default function GroupPage() {
                   <form
                     className="flex gap-2"
                     onSubmit={(e) => {
-                      e.preventDefault()
-                      handleSendMessage()
+                      e.preventDefault();
+                      handleSendMessage();
                     }}
                   >
                     <Input
@@ -416,8 +398,8 @@ export default function GroupPage() {
               <div className="space-y-4">
                 <h2 className="text-xl font-bold">Group Members</h2>
                 <div className="grid gap-4">
-                  {group.members.map((member) => (
-                    <Card key={member.id}>
+                  {group.members.map((member: Member) => (
+                    <Card key={member.clerkId}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
                           <Avatar className="h-10 w-10">
@@ -427,7 +409,7 @@ export default function GroupPage() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="font-medium">{member.name}</h3>
-                              {member.isYou && <Badge variant="outline">You</Badge>}
+                              {member.clerkId === user?.id && <span className="text-xs text-muted-foreground">(You)</span>}
                             </div>
                             <p className="text-sm text-muted-foreground flex items-center gap-1">
                               {member.isOnline ? (
@@ -443,20 +425,6 @@ export default function GroupPage() {
                               )}
                             </p>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setActiveTab("chat")
-                              // In a real app, this would open a direct message with the member
-                              toast({
-                                title: "Chat opened",
-                                description: `Opening chat with ${member.name}`,
-                              })
-                            }}
-                          >
-                            Message
-                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -468,6 +436,5 @@ export default function GroupPage() {
         </Tabs>
       </main>
     </div>
-  )
+  );
 }
-

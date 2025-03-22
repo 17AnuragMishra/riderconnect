@@ -100,7 +100,7 @@ class MockSocket {
       return
     }
 
-    console.log("Sending message:", message)
+    console.log("Sending message socket update:", message)
     // In a real app, this would send the message to the server
     // socket.emit('send_message', message);
 
