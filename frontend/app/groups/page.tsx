@@ -1,8 +1,7 @@
 "use client";
-import {
-  AlertDialogFooter,
-  AlertDialogHeader,
-} from "@/components/ui/alert-dialog";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,22 +11,33 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useGroups } from "@/contexts/group-context";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Plus, Users, ArrowRight, Trash2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+import { useGroups } from "@/contexts/group-context";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@radix-ui/react-alert-dialog";
-import { ArrowRight, Trash2 } from "lucide-react";
-import { redirect } from "next/navigation";
-import React, { useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
+} from "@/components/ui/alert-dialog";
 
 interface Member {
   clerkId: string;
@@ -49,6 +59,15 @@ const page = () => {
   const { user, isLoaded } = useUser();
   const { groups, deleteGroup } = useGroups();
   const { toast } = useToast();
+
+  const [newGroupName, setNewGroupName] = useState("");
+  const [source, setSource] = useState("");
+  const [destination, setDestination] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
     if (!user) {
