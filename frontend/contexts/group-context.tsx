@@ -1,226 +1,122 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
-import { generateInviteCode } from "@/lib/utils"
+import { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
+import { useUser } from "@clerk/nextjs";
 
-export type Member = {
-  id: string
-  name: string
-  avatar: string
-  isOnline: boolean
-  isYou: boolean
-  lastLocation?: { lat: number; lng: number }
+interface Member {
+  clerkId: string;
+  name: string;
+  avatar?: string;
 }
 
-export type Group = {
-  id: string
-  name: string
-  members: Member[]
-  inviteCode: string
-  distanceThreshold: number
-  createdAt: string
-  lastActive: string
+interface Group {
+  _id: string;
+  name: string;
+  code: string;
+  source: string;
+  destination: string;
+  members: Member[];
+  createdBy: string;
 }
 
-type GroupContextType = {
-  groups: Group[]
-  createGroup: (name: string) => Promise<Group>
-  joinGroup: (inviteCode: string) => Promise<Group | null>
-  deleteGroup: (id: string) => Promise<boolean>
-  getGroup: (id: string) => Group | undefined
-  updateGroupSettings: (id: string, settings: Partial<Group>) => Promise<boolean>
-}
-
-const GroupContext = createContext<GroupContextType | undefined>(undefined)
+const GroupContext = createContext<any>(null);
 
 export function GroupProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoaded } = useUser()
-  const [groups, setGroups] = useState<Group[]>([
-    {
-      id: "1",
-      name: "Road Trip to California",
-      members: [
-        {
-          id: "1",
-          name: "You",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-          isYou: true,
-          lastLocation: { lat: 34.052235, lng: -118.243683 },
-        },
-        {
-          id: "2",
-          name: "Alex Johnson",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-          isYou: false,
-          lastLocation: { lat: 34.053235, lng: -118.245683 },
-        },
-        {
-          id: "3",
-          name: "Maria Garcia",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-          isYou: false,
-          lastLocation: { lat: 34.051235, lng: -118.242683 },
-        },
-      ],
-      inviteCode: "TRIP2025",
-      distanceThreshold: 500,
-      createdAt: new Date().toISOString(),
-      lastActive: "2 minutes ago",
-    },
-    {
-      id: "2",
-      name: "Music Festival",
-      members: [
-        {
-          id: "1",
-          name: "You",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-          isYou: true,
-        },
-        {
-          id: "4",
-          name: "James Smith",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: false,
-          isYou: false,
-        },
-        {
-          id: "5",
-          name: "Sarah Wilson",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-          isYou: false,
-        },
-      ],
-      inviteCode: "FEST2025",
-      distanceThreshold: 300,
-      createdAt: new Date().toISOString(),
-      lastActive: "1 hour ago",
-    },
-  ])
+  const { user, isLoaded } = useUser();
+  const [groups, setGroups] = useState<Group[]>([]);
 
-  // Load groups from localStorage when component mounts
+  const fetchGroups = async () => {
+    if (!user || !isLoaded) return;
+    try {
+      const res = await axios.get(`http://localhost:5000/groups?clerkId=${user.id}`);
+      console.log("Fetched groups for clerkId", user.id, ":", res.data);
+      setGroups(res.data);
+    } catch (err) {
+      console.error("Failed to fetch groups:", err);
+    }
+  };
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedGroups = localStorage.getItem("grouptrack-groups")
-      if (savedGroups) {
-        try {
-          setGroups(JSON.parse(savedGroups))
-        } catch (error) {
-          console.error("Failed to parse saved groups:", error)
-        }
+    console.log("Current clerkId:", user?.id);
+    fetchGroups();
+  }, [user, isLoaded]);
+
+  const createGroup = async (name: string, source: string, destination: string): Promise<Group> => {
+    if (!user) throw new Error("User not authenticated");
+    try {
+      const res = await axios.post("http://localhost:5000/groups/create", {
+        name,
+        source,
+        destination,
+        clerkId: user.id,
+        clerkName: user.firstName || "User",
+        clerkAvatar: user.imageUrl || "",
+      });
+      const newGroup = res.data;
+      console.log("Newly created group:", newGroup);
+      await fetchGroups();
+      return newGroup;
+    } catch (err) {
+      console.error("Failed to create group:", err);
+      throw err;
+    }
+  };
+
+  const joinGroup = async (code: string): Promise<Group | null> => {
+    if (!user) throw new Error("User not authenticated");
+    try {
+      const res = await axios.post("http://localhost:5000/groups/join", {
+        code,
+        clerkId: user.id,
+        clerkName: user.firstName || "User",
+        clerkAvatar: user.imageUrl || "",
+      });
+      const joinedGroup = res.data;
+      console.log("Joined group:", joinedGroup);
+      await fetchGroups(); // Ensure this runs and updates state
+      return joinedGroup;
+    } catch (err) {
+      console.error("Failed to join group:", err);
+      throw err;
+    }
+  };
+
+  const deleteGroup = async (id: string): Promise<void> => {
+    if (!user) throw new Error("User Authenticated nhi hai");
+    try {
+      console.log("Deleting group with ID:", id, "for clerkId:", user.id);
+      const res = await axios.delete(`http://localhost:5000/groups/${id}?clerkId=${user.id}`);
+      console.log("Delete response:", res.data);
+      await fetchGroups();
+    } catch (err: any) {
+      console.error("Delete failed:", err.response?.data || err.message);
+      if (err.response?.status === 404) {
+        throw new Error("group not found or maybe you don't have a permission to do so");
+      } else if (err.response?.status === 403) {
+        throw new Error("nhi kar sakta permission nhi hai");
       }
+      throw err;
     }
-  }, [])
+  };
 
-  // Save groups to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("grouptrack-groups", JSON.stringify(groups))
-    }
-  }, [groups])
+  const getGroup = (id: string): Group | undefined => groups.find((g) => g._id === id);
 
-  const createGroup = async (name: string): Promise<Group> => {
-    // In a real app, this would make an API call to create the group
-    const newGroup: Group = {
-      id: Date.now().toString(),
-      name,
-      members: [
-        {
-          id: "1",
-          name: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username || "You",
-          avatar: user?.imageUrl || "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-          isYou: true,
-        },
-      ],
-      inviteCode: generateInviteCode(),
-      distanceThreshold: 500,
-      createdAt: new Date().toISOString(),
-      lastActive: "Just now",
-    }
-
-    setGroups((prevGroups) => [...prevGroups, newGroup])
-    return newGroup
-  }
-
-  const joinGroup = async (inviteCode: string): Promise<Group | null> => {
-    // In a real app, this would make an API call to join the group
-    const group = groups.find((g) => g.inviteCode === inviteCode)
-
-    if (!group) {
-      return null
-    }
-
-    // Check if user is already a member
-    if (group.members.some((m) => m.isYou)) {
-      return group
-    }
-
-    // Add user to the group
-    const updatedGroup = {
-      ...group,
-      members: [
-        ...group.members,
-        {
-          id: Date.now().toString(),
-          name: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username || "You",
-          avatar: user?.imageUrl || "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-          isYou: true,
-        },
-      ],
-      lastActive: "Just now",
-    }
-
-    setGroups((prevGroups) => prevGroups.map((g) => (g.id === group.id ? updatedGroup : g)))
-
-    return updatedGroup
-  }
-
-  const deleteGroup = async (id: string): Promise<boolean> => {
-    // In a real app, this would make an API call to delete the group
-    setGroups((prevGroups) => prevGroups.filter((g) => g.id !== id))
-    return true
-  }
-
-  const getGroup = (id: string): Group | undefined => {
-    return groups.find((g) => g.id === id)
-  }
-
-  const updateGroupSettings = async (id: string, settings: Partial<Group>): Promise<boolean> => {
-    // In a real app, this would make an API call to update the group settings
-    setGroups((prevGroups) => prevGroups.map((g) => (g.id === id ? { ...g, ...settings, lastActive: "Just now" } : g)))
-    return true
-  }
+  const updateGroupSettings = async (id: string, settings: Partial<Group>): Promise<void> => {
+    setGroups((prev) => prev.map((g) => (g._id === id ? { ...g, ...settings } : g)));
+  };
 
   return (
-    <GroupContext.Provider
-      value={{
-        groups,
-        createGroup,
-        joinGroup,
-        deleteGroup,
-        getGroup,
-        updateGroupSettings,
-      }}
-    >
+    <GroupContext.Provider value={{ groups, createGroup, joinGroup, deleteGroup, getGroup, updateGroupSettings }}>
       {children}
     </GroupContext.Provider>
-  )
+  );
 }
 
 export function useGroups() {
-  const context = useContext(GroupContext)
+  const context = useContext(GroupContext);
   if (context === undefined) {
-    throw new Error("useGroups must be used within a GroupProvider")
+    throw new Error("context undefine hoke fail ho gya hai bhai");
   }
-  return context
+  return context;
 }
-
