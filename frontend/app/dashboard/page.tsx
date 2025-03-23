@@ -149,11 +149,13 @@ export default function Dashboard() {
   return (
     <div className="flex-1 container py-6 px-4 md:py-12">
       <div className="flex flex-col gap-8">
+        {/* Header */}
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold">Welcome, {user?.firstName || "User"}</h1>
           <p className="text-muted-foreground">Create or join groups to track locations and stay connected</p>
         </div>
 
+        {/* Group Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Create New Group Card */}
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -229,73 +231,82 @@ export default function Dashboard() {
             </DialogContent>
           </Dialog>
 
-          {/* Existing Groups */}
-          {groups.map((group) => (
-            <Card key={group.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <CardTitle>{group.name}</CardTitle>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Group</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this group? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDeleteGroup(group.id, group.name)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-                <CardDescription>
-                  {group.members.length} members • Active {group.lastActive}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex -space-x-2">
-                  {group.members.slice(0, 4).map((member, i) => (
-                    <div
-                      key={i}
-                      className="h-8 w-8 rounded-full bg-primary/10 border border-background flex items-center justify-center text-xs font-medium"
-                    >
-                      {member.name.charAt(0)}
-                    </div>
-                  ))}
-                  {group.members.length > 4 && (
-                    <div className="h-8 w-8 rounded-full bg-muted border border-background flex items-center justify-center text-xs font-medium">
-                      +{group.members.length - 4}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="pt-2">
-                <Link href={`/dashboard/group/${group.id}`} className="w-full">
-                  <Button variant="outline" size="sm" className="w-full">
-                    <span>View Group</span>
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+          
         </div>
+
+        {/* Existing Groups */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold">Groups</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+            
+            {groups.map((group) => (
+              <Card key={group.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <CardTitle>{group.name}</CardTitle>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Group</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this group? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteGroup(group.id, group.name)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                  <CardDescription>
+                    {group.members.length} members • Active {group.lastActive}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex -space-x-2">
+                    {group.members.slice(0, 4).map((member, i) => (
+                      <div
+                        key={i}
+                        className="h-8 w-8 rounded-full bg-primary/10 border border-background flex items-center justify-center text-xs font-medium"
+                      >
+                        {member.name.charAt(0)}
+                      </div>
+                    ))}
+                    {group.members.length > 4 && (
+                      <div className="h-8 w-8 rounded-full bg-muted border border-background flex items-center justify-center text-xs font-medium">
+                        +{group.members.length - 4}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-2">
+                  <Link href={`/dashboard/group/${group.id}`} className="w-full">
+                    <Button variant="outline" size="sm" className="w-full">
+                      <span>View Group</span>
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   )
