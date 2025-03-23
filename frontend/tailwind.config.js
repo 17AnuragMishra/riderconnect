@@ -17,6 +17,22 @@ module.exports = {
       },
     },
     extend: {
+      fontSize: {
+        'display-lg': ['48px', { lineHeight: '130%' }],
+        'display-md': ['40px', { lineHeight: '130%' }],
+        'display-sm': ['32px', { lineHeight: '130%' }],
+
+        'headline-lg': ['28px', { lineHeight: '140%' }],
+        'headline-md': ['24px', { lineHeight: '140%' }],
+        'headline-sm': ['20px', { lineHeight: '140%' }],
+
+        'body-lg': ['18px', { lineHeight: '150%' }],
+        'body-md': ['16px', { lineHeight: '150%' }],
+        'body-sm': ['14px', { lineHeight: '150%' }],
+
+        'caption-lg': ['14px', { lineHeight: '140%' }],
+        'caption-md': ['12px', { lineHeight: '140%' }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
