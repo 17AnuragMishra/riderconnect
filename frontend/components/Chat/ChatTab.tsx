@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,24 +22,28 @@ interface Message {
 
 interface ChatTabProps {
   groupId: string;
-  members: { clerkId: string; name: string; avatar: string }[];
+  members?: { clerkId: string; name: string; avatar?: string }[];
 }
 
 const socket: Socket = io("http://localhost:5000", { autoConnect: false });
 
-const fetchMessages = async (groupId: string): Promise<Message[]> => {
-  const res = await axios.get(`http://localhost:5000/messages/group/${groupId}`);
-  return res.data.data;
-};
+// const fetchMessages = async (groupId: string): Promise<Message[]> => {
+//   const res = await axios.get(`http://localhost:5000/messages/group/${groupId}`);
+//   return res.data.data;
+// };
 
-export default function ChatTab({ groupId, members }: ChatTabProps) {
+function ChatTab({ groupId, members }: ChatTabProps) {
   const { user } = useUser();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const initialized = useRef(false);    
-  console.log("fetch se pehle group If:", groupId);
+  const initialized = useRef(false);
+  const fetchMessages = async (groupId: string): Promise<Message[]> => {
+    const res = await axios.get(`http://localhost:5000/messages/group/${groupId}`);
+    setMessages(res.data.data);
+    return res.data.data;
+  };
   const { data: initialMessages, isLoading } = useQuery({
     queryKey: ["messages", groupId],
     queryFn: () => fetchMessages(groupId),
@@ -83,31 +87,37 @@ export default function ChatTab({ groupId, members }: ChatTabProps) {
     };
   }, [user, groupId]);
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
+  // useEffect(() => {
+  //   if (messagesEndRef.current) {
+  //     setTimeout(() => {
+  //       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  //     }, 100);
+  //   }
+  // }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
+
     const message = {
       groupId,
       clerkId: user.id,
       clerkName: user.firstName || "User",
       content: newMessage,
     };
+
     socket.emit("sendMessage", message);
     setNewMessage("");
+    setTimeout(async () => {
+      const latestMessages = await fetchMessages(groupId);
+      setMessages(latestMessages);
+    }, 200);
   };
-
-  if (isLoading) return <div>Loading chat...</div>;
 
   return (
     <div className="flex flex-col h-[70vh]">
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
         {messages.map((message) => {
-          const sender = message.senderId === "system" ? null : members.find((m) => m.clerkId === message.senderId);
+          const sender = message.senderId === "system" ? null : members?.find((m) => m.clerkId === message.senderId);
           const isYou = message.senderId === user?.id;
 
           return (
@@ -163,5 +173,14 @@ export default function ChatTab({ groupId, members }: ChatTabProps) {
         </form>
       </div>
     </div>
+  );
+}
+
+const queryClient = new QueryClient();
+export default function ChatTabWrapper(props: ChatTabProps) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ChatTab {...props} />
+    </QueryClientProvider>
   );
 }
