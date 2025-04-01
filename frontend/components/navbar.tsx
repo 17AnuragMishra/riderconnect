@@ -1,20 +1,25 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MapPin, Users, Bell } from "lucide-react"
-import { useUser, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MapPin, Users, Bell } from "lucide-react";
+import { useUser, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 export default function Navbar() {
-  const pathname = usePathname()
-  const { user, isLoaded } = useUser()
+  const pathname = usePathname();
+  const { user, isLoaded } = useUser();
 
   // Don't show navbar on sign-in or sign-up pages
   if (pathname === "/sign-in" || pathname === "/sign-up") {
-    return null
+    return null;
   }
 
   return (
@@ -30,16 +35,22 @@ export default function Navbar() {
         <SignedIn>
           <div className="hidden md:flex items-center gap-4">
             <Link href="/dashboard">
-              <Button variant={pathname === "/dashboard" ? "default" : "ghost"}>Dashboard</Button>
+              <Button variant={pathname === "/dashboard" ? "default" : "ghost"}>
+                Dashboard
+              </Button>
             </Link>
             <Link href="/groups">
-              <Button variant={pathname.startsWith("/groups") ? "default" : "ghost"}>
+              <Button
+                variant={pathname.startsWith("/groups") ? "default" : "ghost"}
+              >
                 <Users className="mr-2 h-4 w-4" />
                 Groups
               </Button>
             </Link>
             <Link href="/notifications">
-              <Button variant={pathname === "/notifications" ? "default" : "ghost"}>
+              <Button
+                variant={pathname === "/notifications" ? "default" : "ghost"}
+              >
                 <Bell className="mr-2 h-4 w-4" />
                 Notifications
               </Button>
@@ -58,7 +69,9 @@ export default function Navbar() {
               }}
             />
 
-            <ThemeToggle />
+            <div className="hidden md:flex">
+              <ThemeToggle />
+            </div>
 
             {/* Mobile menu for smaller screens */}
             <div className="md:hidden">
@@ -94,6 +107,9 @@ export default function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link href="/notifications">Notifications</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <ThemeToggle />
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -113,6 +129,5 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
-  )
+  );
 }
-

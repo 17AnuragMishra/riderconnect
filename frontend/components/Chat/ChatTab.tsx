@@ -25,10 +25,16 @@ interface ChatTabProps {
   members: { clerkId: string; name: string; avatar: string }[];
 }
 
-const socket: Socket = io("http://localhost:5000", { autoConnect: false });
+const socket: Socket = io("http://localhost:5000", {
+  auth: {
+    userId: "clerk id",
+  },
+});
 
 const fetchMessages = async (groupId: string): Promise<Message[]> => {
-  const res = await axios.get(`http://localhost:5000/messages/group/${groupId}`);
+  const res = await axios.get(
+    `http://localhost:5000/messages/group/${groupId}`
+  );
   return res.data.data;
 };
 
@@ -38,8 +44,8 @@ export default function ChatTab({ groupId, members }: ChatTabProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const initialized = useRef(false);    
-  console.log("fetch se pehle group If:", groupId);
+  const initialized = useRef(false);
+
   const { data: initialMessages, isLoading } = useQuery({
     queryKey: ["messages", groupId],
     queryFn: () => fetchMessages(groupId),
@@ -59,6 +65,11 @@ export default function ChatTab({ groupId, members }: ChatTabProps) {
 
     socket.on("receiveMessage", (message: Message) => {
       setMessages((prev) => [...prev, message]);
+
+      setTimeout(() => {
+        const audio = new Audio("/Discordnotification.mp3"); // Public folder se load hoga
+        audio.play().catch((err) => console.log("Audio play error:", err));
+      }, 300);
     });
 
     socket.on("notification", (notification) => {
@@ -107,12 +118,22 @@ export default function ChatTab({ groupId, members }: ChatTabProps) {
     <div className="flex flex-col h-[70vh]">
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
         {messages.map((message) => {
-          const sender = message.senderId === "system" ? null : members.find((m) => m.clerkId === message.senderId);
+          const sender =
+            message.senderId === "system"
+              ? null
+              : members.find((m) => m.clerkId === message.senderId);
           const isYou = message.senderId === user?.id;
 
           return (
-            <div key={message._id} className={`flex ${isYou ? "justify-end" : "justify-start"}`}>
-              <div className={`flex gap-2 max-w-[80%] ${isYou ? "flex-row-reverse" : "flex-row"}`}>
+            <div
+              key={message._id}
+              className={`flex ${isYou ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`flex gap-2 max-w-[80%] ${
+                  isYou ? "flex-row-reverse" : "flex-row"
+                }`}
+              >
                 {sender && (
                   <Avatar className="h-8 w-8 flex-shrink-0">
                     <AvatarImage src={sender.avatar} alt={sender.name} />
@@ -122,7 +143,11 @@ export default function ChatTab({ groupId, members }: ChatTabProps) {
                 <div>
                   <div
                     className={`rounded-lg px-3 py-2 ${
-                      isYou ? "bg-primary text-primary-foreground" : message.senderId === "system" ? "bg-muted text-center" : "bg-muted"
+                      isYou
+                        ? "bg-primary text-primary-foreground"
+                        : message.senderId === "system"
+                        ? "bg-muted text-center"
+                        : "bg-muted"
                     }`}
                   >
                     <p>{message.content}</p>
@@ -134,7 +159,12 @@ export default function ChatTab({ groupId, members }: ChatTabProps) {
                   >
                     <span>{isYou ? "You" : message.senderName}</span>
                     <span>•</span>
-                    <span>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span>
+                      {new Date(message.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </div>
                 </div>
               </div>

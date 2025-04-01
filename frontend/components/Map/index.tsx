@@ -1,26 +1,51 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import "leaflet/dist/leaflet.css";
+import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.webpack.css";
+import "leaflet-defaulticon-compatibility";
 
-interface MapComponentProps {
-  locations: any[];
-}
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import { useMemo } from "react";
 
-export default function MapComponent({ locations }: MapComponentProps) {
+// interface MapComponentProps {
+//   locations: any[];
+// }
+
+export default function MapComponent() {
   const mapRef = useRef<HTMLDivElement>(null);
+  
+  const position = useMemo(() => [51.505, -0.09], []);
 
-  useEffect(() => {
-    // Mock map rendering (replace with real Mapbox/Google Maps integration)
-    if (mapRef.current) {
-      console.log("Map updated with locations:", locations);
-      locations.forEach((loc) => {
-        // Simulate avatar rendering with red circle if offline
-        console.log(`${loc.clerkId} at (${loc.latitude}, ${loc.longitude}), ${loc.isOnline ? "online" : "offline with red circle"}`);
-      });
-    }
-  }, [locations]);
+  // useEffect(() => {
+  //   // Mock map rendering (replace with real Mapbox/Google Maps integration)
+  //   if (mapRef.current) {
+  //     console.log("Map updated with locations:", locations);
+  //     locations.forEach((loc) => {
+  //       // Simulate avatar rendering with red circle if offline
+  //       console.log(`${loc.clerkId} at (${loc.latitude}, ${loc.longitude}), ${loc.isOnline ? "online" : "offline with red circle"}`);
+  //     });
+  //   }
+  // }, [locations]);
 
-  return <div ref={mapRef} className="h-[50vh] bg-muted rounded-lg" />;
+  return (
+      <MapContainer
+        center={position}
+        zoom={11}
+        scrollWheelZoom={true}
+        style={{ height: "400px", width: "100%" }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <Marker position={position}>
+          <Popup>
+            This Marker icon is displayed correctly with <i>leaflet-defaulticon-compatibility</i>.
+          </Popup>
+        </Marker>
+      </MapContainer>
+    );
 }
 
 
