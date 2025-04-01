@@ -1,10 +1,15 @@
+"use client";
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { MapPin, Users, MessageSquare, Bell } from "lucide-react"
-import { auth } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
+import { TypeAnimation } from 'react-type-animation';
+import { CardSpotlight } from "@/components/ui/card-spotlight";
+
+
 
 export default function Home() {
-  const { userId } = auth()
+  const userId = useUser().user?.id;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -15,7 +20,17 @@ export default function Home() {
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">
-                    Never Lose Track of Your Group Again
+                    <TypeAnimation sequence={["Never Lose Track of Your Group Again" , 1000 ,""]}
+                        repeat={Infinity} 
+                        cursor={false} preRenderFirstString={true}
+                        style={
+                                {
+                                   whiteSpace: "pre-line",
+                                  display: "block"
+                                }
+                              }
+                        omitDeletionAnimation={true}
+                     />
                   </h1>
                   <p className="max-w-[600px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
                     Track your friends and family in real-time, chat with your group, and get alerts when someone strays
@@ -58,7 +73,8 @@ export default function Home() {
             </div>
           </div>
         </section>
-
+        
+        {/* Key Features Section */}
         <section id="features" className="w-full py-12 md:py-24 bg-muted/50">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
@@ -70,58 +86,74 @@ export default function Home() {
               </div>
             </div>
             <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8">
-              <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
-                <MapPin className="h-10 w-10 text-primary" />
-                <h3 className="text-xl font-bold">Real-Time Tracking</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  See everyone's location updated in real-time on an interactive map
-                </p>
-              </div>
-              <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
-                <Bell className="h-10 w-10 text-primary" />
-                <h3 className="text-xl font-bold">Distance Alerts</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  Get notified when someone exceeds a specified distance from the group
-                </p>
-              </div>
-              <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
-                <MessageSquare className="h-10 w-10 text-primary" />
-                <h3 className="text-xl font-bold">Group Chat</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  Communicate with your group without leaving the app
-                </p>
-              </div>
-              <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
-                <Users className="h-10 w-10 text-primary" />
-                <h3 className="text-xl font-bold">Easy Group Creation</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  Create groups and invite friends with a simple link or code
-                </p>
-              </div>
-              <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-6 w-6 text-primary"
-                  >
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                  </svg>
+              <CardSpotlight>
+                <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
+                  <MapPin className="h-10 w-10 text-primary z-20" />
+                  <h3 className="text-xl font-bold z-20 text-white">Real-Time Tracking</h3>
+                  <p className="text-sm text-gray-500 text-center dark:text-gray-400 z-20">
+                    See everyone's location updated in real-time on an interactive map
+                  </p>
                 </div>
-                <h3 className="text-xl font-bold">Network Loss Handling</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  Automatically notify the group when someone loses connection
-                </p>
-              </div>
+              </CardSpotlight>
+              
+              <CardSpotlight>
+                <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
+                  <Bell className="h-10 w-10 text-primary z-20" />
+                  <h3 className="text-xl font-bold z-20 text-white">Distance Alerts</h3>
+                  <p className="text-sm text-gray-500 text-center dark:text-gray-400 z-20">
+                    Get notified when someone exceeds a specified distance from the group
+                  </p>
+                </div>
+              </CardSpotlight>
+
+              <CardSpotlight>
+                <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
+                  <MessageSquare className="h-10 w-10 text-primary z-20" />
+                  <h3 className="text-xl font-bold z-20 text-white">Group Chat</h3>
+                  <p className="text-sm text-gray-500 text-center dark:text-gray-400 z-20">
+                    Communicate with your group without leaving the app
+                  </p>
+                </div>
+              </CardSpotlight>
+
+              <CardSpotlight>
+                <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
+                  <Users className="h-10 w-10 text-primary z-20" />
+                  <h3 className="text-xl font-bold z-20 text-white whitespace-nowrap"> Easy Group Creation</h3>
+                  <p className="text-sm text-gray-500 text-center dark:text-gray-400 z-20">
+                    Create groups and invite friends with a simple link or code
+                  </p>
+                </div>
+              </CardSpotlight>
+
+              <CardSpotlight>
+                <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
+                  <div className="rounded-full bg-primary/10 p-2 z-20">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-6 w-6 text-primary z-20" 
+                    >
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold z-20 text-white whitespace-nowrap">Network Loss Handling</h3>
+                  <p className="text-sm text-gray-500 text-center dark:text-gray-400 z-20">
+                    Automatically notify the group when someone loses connection
+                  </p>
+                </div>
+              </CardSpotlight>
+              
+              <CardSpotlight>
               <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
-                <div className="rounded-full bg-primary/10 p-2">
+                <div className="rounded-full bg-primary/10 p-2 z-20">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
@@ -139,11 +171,13 @@ export default function Home() {
                     <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold">Unique Avatars</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
+                <h3 className="text-xl font-bold z-20 text-white">Unique Avatars</h3>
+                <p className="text-sm text-gray-500 text-center dark:text-gray-400 z-20">
                   Easily identify group members with customizable avatars
                 </p>
               </div>
+              </CardSpotlight>
+
             </div>
           </div>
         </section>
