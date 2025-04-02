@@ -36,6 +36,7 @@ interface Member {
   clerkId: string;
   name: string;
   avatar?: string;
+  isOnline?: Boolean;
 }
 
 interface Group {
