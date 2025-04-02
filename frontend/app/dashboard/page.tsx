@@ -1,9 +1,17 @@
 "use client";
 
+import styled from 'styled-components';
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -31,6 +39,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import axios from "axios";
+import { log } from "console";
+import { errorMonitor } from "events";
 
 interface Member {
   clerkId: string;
@@ -50,6 +61,9 @@ interface Group {
 }
 
 export default function Dashboard() {
+  // abhi hardcode kri isko env file mein shift krna h
+  const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
+
   const { user, isLoaded } = useUser();
   const { groups, createGroup, joinGroup, deleteGroup } = useGroups();
   const { toast } = useToast();
@@ -57,6 +71,8 @@ export default function Dashboard() {
   const [newGroupName, setNewGroupName] = useState("");
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
+  const [suggestedSource, setSuggestedSource] = useState([]);
+  const [suggestedDestination, setSuggestedDestination] = useState([]);
   const [inviteCode, setInviteCode] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -70,20 +86,31 @@ export default function Dashboard() {
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim() || !source.trim() || !destination.trim()) {
-      toast({ title: "Error", description: "Please fill all fields", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Please fill all fields",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsCreating(true);
     try {
       const group = await createGroup(newGroupName, source, destination);
-      toast({ title: "Success", description: `Group "${group.name}" created with code ${group.code}!` });
+      toast({
+        title: "Success",
+        description: `Group "${group.name}" created with code ${group.code}!`,
+      });
       setNewGroupName("");
       setSource("");
       setDestination("");
       setCreateDialogOpen(false);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to create group", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create group",
+        variant: "destructive",
+      });
     } finally {
       setIsCreating(false);
     }
@@ -91,7 +118,11 @@ export default function Dashboard() {
 
   const handleJoinGroup = async () => {
     if (!inviteCode.trim()) {
-      toast({ title: "Error", description: "Please enter an invite code", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Please enter an invite code",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -103,10 +134,18 @@ export default function Dashboard() {
         setInviteCode("");
         setJoinDialogOpen(false);
       } else {
-        toast({ title: "Error", description: "Invalid code", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Invalid code",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to join group", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to join group",
+        variant: "destructive",
+      });
     } finally {
       setIsJoining(false);
     }
@@ -127,15 +166,42 @@ export default function Dashboard() {
     }
   };
 
-  if (!isLoaded) return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  if (!isLoaded)
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        Loading...
+      </div>
+    );
+
+  const fetchSuggestion = async (place: string, sourceType: string) => {
+    if (place.length < 2) {
+      return;
+    }
+    try {
+      const url = `https://api.locationiq.com/v1/autocomplete?key=${LOCATION_IO_API_KEY}&q=${place}`;
+      const response = await axios.get(url);
+      if (sourceType === "source") {
+        setSuggestedSource(response.data);
+      } else {
+        setSuggestedDestination(response.data);
+      }
+      console.log(response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <div className="flex-1 container py-6 px-4 md:py-12">
       <div className="flex flex-col gap-8">
         {/* Header */}
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold">Welcome, {user?.firstName || "User"}</h1>
-          <p className="text-muted-foreground">Create or join group rides to track and chat</p>
+          <h1 className="text-3xl font-bold">
+            Welcome, {user?.firstName || "User"}
+          </h1>
+          <p className="text-muted-foreground">
+            Create or join group rides to track and chat
+          </p>
         </div>
 
         {/* Group Cards */}
@@ -154,7 +220,9 @@ export default function Dashboard() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create a New Group Ride</DialogTitle>
-                <DialogDescription>Set up your ride and invite others.</DialogDescription>
+                <DialogDescription>
+                  Set up your ride and invite others.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
@@ -172,8 +240,27 @@ export default function Dashboard() {
                     id="source"
                     placeholder="e.g., New York"
                     value={source}
-                    onChange={(e) => setSource(e.target.value)}
+                    onChange={(e) => {
+                      setSource(e.target.value);
+                      fetchSuggestion(e.target.value, e.target.id);
+                    }}
                   />
+                  {suggestedSource.length > 0 && source.length > 0 && (
+                    <SuggestionList>
+                      {suggestedSource.map((place, index) => (
+                        <div
+                          className='list p-1'
+                          key={index}
+                          onClick={() => {
+                            setSource(place.display_name);
+                            setSuggestedSource([]);
+                          }}
+                        >
+                          {place.display_name}
+                        </div>
+                      ))}
+                    </SuggestionList>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="destination">Destination</Label>
@@ -181,8 +268,27 @@ export default function Dashboard() {
                     id="destination"
                     placeholder="e.g., Boston"
                     value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
+                    onChange={(e) => {
+                      setDestination(e.target.value);
+                      fetchSuggestion(e.target.value, e.target.id);
+                    }}
                   />
+                  {suggestedDestination.length > 0 && destination.length > 0 && (
+                    <SuggestionList>
+                      {suggestedDestination.map((place, index) => (
+                        <div 
+                          className='list p-1'
+                          key={index}
+                          onClick={() => {
+                            setDestination(place.display_name);
+                            setSuggestedDestination([]);
+                          }}
+                        >
+                          {place.display_name}
+                        </div>
+                      ))}
+                    </SuggestionList>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -207,7 +313,9 @@ export default function Dashboard() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Join a Group Ride</DialogTitle>
-                <DialogDescription>Enter the invite code to join.</DialogDescription>
+                <DialogDescription>
+                  Enter the invite code to join.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
@@ -235,19 +343,27 @@ export default function Dashboard() {
                   <CardTitle>{group.name}</CardTitle>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Group</AlertDialogTitle>
-                        <AlertDialogDescription>Are you sure? This cannot be undone.</AlertDialogDescription>
+                        <AlertDialogDescription>
+                          Are you sure? This cannot be undone.
+                        </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => handleDeleteGroup(group._id, group.name)}
+                          onClick={() =>
+                            handleDeleteGroup(group._id, group.name)
+                          }
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                           Delete
@@ -256,18 +372,22 @@ export default function Dashboard() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-                <CardDescription>{group.source} → {group.destination}</CardDescription>
+                <CardDescription>
+                  {group.source} → {group.destination}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex -space-x-2">
-                  {group.members.slice(0, 4).map((member: Member, i: number) => (
-                    <div
-                      key={i}
-                      className="h-8 w-8 rounded-full bg-primary/10 border border-background flex items-center justify-center text-xs font-medium"
-                    >
-                      {member.name.charAt(0)}
-                    </div>
-                  ))}
+                  {group.members
+                    .slice(0, 4)
+                    .map((member: Member, i: number) => (
+                      <div
+                        key={i}
+                        className="h-8 w-8 rounded-full bg-primary/10 border border-background flex items-center justify-center text-xs font-medium"
+                      >
+                        {member.name.charAt(0)}
+                      </div>
+                    ))}
                   {group.members.length > 4 && (
                     <div className="h-8 w-8 rounded-full bg-muted border border-background flex items-center justify-center text-xs font-medium">
                       +{group.members.length - 4}
@@ -291,3 +411,23 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
+const SuggestionList = styled.div`
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid black;
+  border-right: 1px solid black;
+  border-left: 1px solid black;
+  height: 25vh;
+  overflow-y: scroll;
+  .list:hover{
+    background-color: #dedede;
+    color: black;
+  }
+
+  .list{
+    border-bottom: 1px solid black;
+  }
+
+`;

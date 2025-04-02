@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -109,9 +110,32 @@ export default function GroupPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [ location, setLocation ] = useState();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+
+  // yaha se user ki current location ko fetch kr rha h
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        setLocation({ latitude, longitude });
+      });
+    }
+}, []);
+
+// just for testing ki location update hote hi toast aa rha h ki ni
+useEffect(() => {
+    if (location) {  // Ensure location is not null
+        toast({
+            title: 'Location Retrieved',
+            description: `Latitude: ${location.latitude}, Longitude: ${location.longitude}`,
+            variant: 'default',
+        });
+    }
+}, [location]); // location change hone par chalega
+
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -428,7 +452,7 @@ export default function GroupPage() {
           <BackgroundBeams className="pointer-events-none"/>
           <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
-              <LazyMap />
+              <LazyMap location = {location} />
             </TabsContent>
 
             <TabsContent value="chat" className="mt-0">
