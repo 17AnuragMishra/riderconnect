@@ -47,6 +47,7 @@ interface Member {
   clerkId: string;
   name: string;
   avatar?: string;
+  isOnline?: Boolean;
 }
 
 interface Group {
@@ -193,6 +194,7 @@ export default function Dashboard() {
   return (
     <div className="flex-1 container py-6 px-4 md:py-12">
       <div className="flex flex-col gap-8">
+        {/* Header */}
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold">
             Welcome, {user?.firstName || "User"}
@@ -202,6 +204,7 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {/* Group Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
@@ -403,6 +406,7 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
+
       </div>
     </div>
   );

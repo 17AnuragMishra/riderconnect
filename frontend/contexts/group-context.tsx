@@ -29,7 +29,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
   const fetchGroups = async () => {
     if (!user || !isLoaded) return;
     try {
-      const res = await axios.get(`http://localhost:5000/groups?clerkId=${user.id}`);
+      const res = await axios.get(`${API_BASE_URL}/groups?clerkId=${user.id}`);
       console.log("Fetched groups for clerkId", user.id, ":", res.data);
       setGroups(res.data);
     } catch (err) {
@@ -42,10 +42,12 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     fetchGroups();
   }, [user, isLoaded]);
 
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
   const createGroup = async (name: string, source: string, destination: string): Promise<Group> => {
     if (!user) throw new Error("User not authenticated");
     try {
-      const res = await axios.post("http://localhost:5000/groups/create", {
+      const res = await axios.post(`${API_BASE_URL}/groups/create`, {
         name,
         source,
         destination,
@@ -66,7 +68,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
   const joinGroup = async (code: string): Promise<Group | null> => {
     if (!user) throw new Error("User not authenticated");
     try {
-      const res = await axios.post("http://localhost:5000/groups/join", {
+      const res = await axios.post(`${API_BASE_URL}/groups/join`, {
         code,
         clerkId: user.id,
         clerkName: user.firstName || "User",
@@ -86,7 +88,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     if (!user) throw new Error("User Authenticated nhi hai");
     try {
       console.log("Deleting group with ID:", id, "for clerkId:", user.id);
-      const res = await axios.delete(`http://localhost:5000/groups/${id}?clerkId=${user.id}`);
+      const res = await axios.delete(`${API_BASE_URL}/groups/${id}?clerkId=${user.id}`);
       console.log("Delete response:", res.data);
       await fetchGroups();
     } catch (err: any) {
