@@ -12,10 +12,10 @@ import { useMemo } from "react";
 //   locations: any[];
 // }
 
-export default function MapComponent() {
+export default function MapComponent({ location }) {
   const mapRef = useRef<HTMLDivElement>(null);
   
-  const position = useMemo(() => [51.505, -0.09], []);
+  const position = useMemo(() => [location.latitude, location.longitude], [location]);
 
   // useEffect(() => {
   //   // Mock map rendering (replace with real Mapbox/Google Maps integration)
@@ -27,6 +27,16 @@ export default function MapComponent() {
   //     });
   //   }
   // }, [locations]);
+
+//   var myIcon = L.icon({
+//     iconUrl: {},
+//     iconSize: [38, 95],
+//     iconAnchor: [22, 94],
+//     popupAnchor: [-3, -76],
+//     shadowUrl: '',
+//     shadowSize: [68, 95],
+//     shadowAnchor: [22, 94]
+// });
 
   return (
       <MapContainer
@@ -41,7 +51,7 @@ export default function MapComponent() {
         />
         <Marker position={position}>
           <Popup>
-            This Marker icon is displayed correctly with <i>leaflet-defaulticon-compatibility</i>.
+            Your Location.
           </Popup>
         </Marker>
       </MapContainer>
