@@ -36,8 +36,10 @@ import { redirect } from "next/navigation";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
 import MapComponent from "@/components/Map";
+import ChatTab from "@/components/Chat/ChatTab";
 import axios from "axios";
 import io from "socket.io-client";
+import { BackgroundBeams } from "@/components/ui/background-beams";
 
 const socket = io("http://localhost:5000", { autoConnect: false });
 
@@ -96,7 +98,7 @@ export default function GroupPage() {
     return null;
   }
   const [group, setGroup] = useState<Group | null>(null);
-  const [isFetching, setIsFetching] = useState(true); // New loading state
+  const [isFetching, setIsFetching] = useState(true); 
   const [activeTab, setActiveTab] = useState("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -111,6 +113,8 @@ export default function GroupPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
 
@@ -121,9 +125,7 @@ export default function GroupPage() {
         let fetchedGroup = getGroup(groupId);
         console.log("Group from context:", fetchedGroup);
         if (!fetchedGroup) {
-          const res = await axios.get(
-            `http://localhost:5000/groups?clerkId=${user.id}`
-          );
+          const res = await axios.get(`${API_BASE_URL}/groups?clerkId=${user.id}`);
           console.log("Backend response:", res.data);
           fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
           console.log("Found group from backend:", fetchedGroup);
@@ -154,6 +156,7 @@ export default function GroupPage() {
 
     fetchGroup();
   }, [user, groupId, isLoaded, getGroup, toast, router]);
+  
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
@@ -175,9 +178,7 @@ export default function GroupPage() {
 
     const fetchMessages = async () => {
       try {
-        const res = await axios.get(
-          `http://localhost:5000/messages/group/${groupId}`
-        );
+        const res = await axios.get(`${API_BASE_URL}/messages/group/${groupId}`);
         setMessages(res.data.data);
       } catch (err) {
         console.error("Failed to fetch messages:", err);
@@ -198,6 +199,13 @@ export default function GroupPage() {
       setMessages((prev) => [...prev, message]);
     });
 
+    socket.on("updateOnlineStatus", (updatedMembers: Member[]) => {
+      console.log("Updated online members:", updatedMembers);
+      setGroup((prevGroup) => 
+        prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
+      );
+    });
+  
     socket.on("error", (err) => {
       console.error("Socket error:", err);
       toast({
@@ -206,11 +214,12 @@ export default function GroupPage() {
         variant: "destructive",
       });
     });
-
+  
     initialized.current = true;
-
+  
     return () => {
       socket.off("receiveMessage");
+      socket.off("updateOnlineStatus");
       socket.off("error");
       socket.disconnect();
       initialized.current = false;
@@ -393,7 +402,7 @@ export default function GroupPage() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="flex-1 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="border-b">
             <div className="container">
@@ -416,7 +425,7 @@ export default function GroupPage() {
               </TabsList>
             </div>
           </div>
-
+          <BackgroundBeams className="pointer-events-none"/>
           <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
               <LazyMap />
@@ -484,7 +493,7 @@ export default function GroupPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="border-t pt-4">
+                <div className="border-t pt-4 fix-bottom">
                   <form
                     className="flex gap-2"
                     onSubmit={(e) => {
@@ -503,6 +512,7 @@ export default function GroupPage() {
                   </form>
                 </div>
               </div>
+              {/* <ChatTab groupId={groupId} members={group?.members}/> */}
             </TabsContent>
 
             <TabsContent value="members" className="mt-0">

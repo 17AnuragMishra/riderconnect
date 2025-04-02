@@ -11,6 +11,7 @@ const GroupSchema = new mongoose.Schema({
     clerkId: { type: String, required: true },
     name: { type: String, required: true },
     avatar: { type: String },
+    isOnline: {type: Boolean }
   }],
   createdBy: { type: String, required: true },
 }, { timestamps: true });
