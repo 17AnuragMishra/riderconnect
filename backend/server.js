@@ -12,9 +12,22 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: 'http://localhost:3000' } });
+const io = new Server(server, { 
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+      allowedHeaders: ["Content-Type"],
+      credentials: true,
+    }, 
+  });
+  
 
-app.use(cors());
+  app.use(cors({
+    origin: "*",  
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+    credentials: false
+  }));
 app.use(express.json());
 
 const connectDB = async () => {
@@ -113,13 +126,28 @@ app.get('/messages/group/:groupId', async (req, res) => {
 
 // Socket.IO
 io.on('connection', (socket) => {
+    // console.log("the user id : ", socket);
+    // user.isOnline = 1;
+    // io.on('disconnect', () => {
+    //     !user.isOnline;
+    // })
     socket.on('join', async ({ clerkId, groupId }) => {
         users[socket.id] = clerkId;
         socket.join(groupId);
         if (!groupSockets[groupId]) groupSockets[groupId] = [];
         groupSockets[groupId].push(socket.id);
         console.log(`User ${clerkId} joined group ${groupId}`);
+        try {
+            await Group.findOneAndUpdate(
+                { _id: groupId, "members.clerkId": clerkId },
+                { $set: { "members.$.isOnline": true } },
+                { new: true }
+            );
 
+            io.to(groupId).emit('memberStatusUpdate', { clerkId, isOnline: true });
+        } catch (err) {
+            console.error(`Error updating isOnline on join:`, err.message);
+        }
         try {
             const location = await UserLocation.findOneAndUpdate(
                 { groupId, clerkId },
@@ -151,30 +179,21 @@ io.on('connection', (socket) => {
         delete users[socket.id];
         for (const groupId in groupSockets) {
             groupSockets[groupId] = groupSockets[groupId].filter((id) => id !== socket.id);
+
             try {
-                const location = await UserLocation.findOneAndUpdate(
-                    { groupId, clerkId },
-                    { isOnline: false },
+                await Group.findOneAndUpdate(
+                    { _id: groupId, "members.clerkId": clerkId },
+                    { $set: { "members.$.isOnline": false } },
                     { new: true }
                 );
-                if (location) {
-                    console.log(`Updated location for ${clerkId} in group ${groupId}:`, location);
-                    io.to(groupId).emit('locationUpdate', location);
-                    io.to(groupId).emit('notification', {
-                        type: 'offline',
-                        memberId: clerkId,
-                        message: `${clerkId} lost connection. Last known location shared.`,
-                        timestamp: new Date(),
-                    });
-                } else {
-                    console.log(`No UserLocation found for ${clerkId} in group ${groupId}`);
-                }
+
+                io.to(groupId).emit('memberStatusUpdate', { clerkId, isOnline: false });
             } catch (err) {
-                console.error(`Error updating UserLocation for ${clerkId} in group ${groupId}:`, err);
+                console.error(`Error updating isOnline on disconnect for ${clerkId}:`, err);
             }
         }
     });
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

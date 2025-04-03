@@ -11,17 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Plus, Users, ArrowRight, Trash2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
@@ -59,15 +48,6 @@ const page = () => {
   const { user, isLoaded } = useUser();
   const { groups, deleteGroup } = useGroups();
   const { toast } = useToast();
-
-  const [newGroupName, setNewGroupName] = useState("");
-  const [source, setSource] = useState("");
-  const [destination, setDestination] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
     if (!user) {

@@ -52,6 +52,8 @@
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
+    "leaflet": "^1.9.4",
+    "leaflet-defaulticon-compatibility": "^0.1.2",
     "lucide-react": "^0.454.0",
     "motion": "^12.6.2",
     "next": "15.1.0",
@@ -62,6 +64,7 @@
     "react-day-picker": "8.10.1",
     "react-dom": "^19",
     "react-hook-form": "^7.54.1",
+    "react-leaflet": "^5.0.0",
     "react-query": "^3.39.3",
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.3.0",
@@ -69,7 +72,12 @@
     "recharts": "2.15.0",
     "socket.io-client": "^4.8.1",
     "sonner": "^1.7.1",
+<<<<<<< HEAD
+    "styled-components": "^6.1.16",
+    "tailwind-merge": "^2.5.5",
+=======
     "tailwind-merge": "^2.6.0",
+>>>>>>> 4ab10f8e33dab58a562903a8962fea9fcc818649
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.175.0",
     "vaul": "^0.9.6",
@@ -77,6 +85,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.17",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

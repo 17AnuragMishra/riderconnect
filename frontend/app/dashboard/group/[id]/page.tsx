@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import dynamic from "next/dynamic";
 import {
   Dialog,
   DialogContent,
@@ -16,18 +18,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { MapPin, MessageSquare, Users, Settings, Copy, Send, AlertTriangle, Wifi, WifiOff } from "lucide-react";
+import {
+  MapPin,
+  MessageSquare,
+  Users,
+  Settings,
+  Copy,
+  Send,
+  Wifi,
+  WifiOff,
+  WifiHighIcon,
+} from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
 import MapComponent from "@/components/Map";
+import ChatTab from "@/components/Chat/ChatTab";
 import axios from "axios";
 import io from "socket.io-client";
+import { BackgroundBeams } from "@/components/ui/background-beams";
 
 const socket = io("http://localhost:5000", { autoConnect: false });
 
@@ -58,20 +71,35 @@ interface Group {
   distanceThreshold?: number;
 }
 
+export interface Notifications {
+  heading: string;
+  message: string;
+  numberOfMessage: Int16Array;
+  readState: boolean;
+}
+
 export default function GroupPage() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const params = useParams();
   const router = useRouter();
   const { getGroup, updateGroupSettings } = useGroups();
-  const { toast } = useToast();  
-  const groupId = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : null;
+  const { toast } = useToast();
+  const groupId = params?.id
+    ? Array.isArray(params.id)
+      ? params.id[0]
+      : params.id
+    : null;
   if (!groupId) {
-    toast({ title: "Error", description: "Invalid group ID", variant: "destructive" });
+    toast({
+      title: "Error",
+      description: "Invalid group ID",
+      variant: "destructive",
+    });
     router.push("/dashboard");
     return null;
   }
   const [group, setGroup] = useState<Group | null>(null);
-  const [isFetching, setIsFetching] = useState(true); // New loading state
+  const [isFetching, setIsFetching] = useState(true); 
   const [activeTab, setActiveTab] = useState("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -82,9 +110,34 @@ export default function GroupPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [ location, setLocation ] = useState();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+
+  // yaha se user ki current location ko fetch kr rha h
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        setLocation({ latitude, longitude });
+      });
+    }
+}, []);
+
+// just for testing ki location update hote hi toast aa rha h ki ni
+useEffect(() => {
+    if (location) {  // Ensure location is not null
+        toast({
+            title: 'Location Retrieved',
+            description: `Latitude: ${location.latitude}, Longitude: ${location.longitude}`,
+            variant: 'default',
+        });
+    }
+}, [location]); // location change hone par chalega
+
+
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -96,13 +149,17 @@ export default function GroupPage() {
         let fetchedGroup = getGroup(groupId);
         console.log("Group from context:", fetchedGroup);
         if (!fetchedGroup) {
-          const res = await axios.get(`http://localhost:5000/groups?clerkId=${user.id}`);
+          const res = await axios.get(`${API_BASE_URL}/groups?clerkId=${user.id}`);
           console.log("Backend response:", res.data);
           fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
           console.log("Found group from backend:", fetchedGroup);
         }
         if (!fetchedGroup) {
-          toast({ title: "Error", description: "Group not found", variant: "destructive" });
+          toast({
+            title: "Error",
+            description: "Group not found",
+            variant: "destructive",
+          });
           router.push("/dashboard");
           return;
         }
@@ -110,7 +167,11 @@ export default function GroupPage() {
         setDistanceThreshold(fetchedGroup?.distanceThreshold || 500);
       } catch (err) {
         console.error("Failed to fetch group:", err);
-        toast({ title: "Error", description: "Failed to load group", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Failed to load group",
+          variant: "destructive",
+        });
         router.push("/dashboard");
       } finally {
         setIsFetching(false);
@@ -119,6 +180,7 @@ export default function GroupPage() {
 
     fetchGroup();
   }, [user, groupId, isLoaded, getGroup, toast, router]);
+  
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
@@ -126,7 +188,11 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (isLoaded && !isFetching && group === null) {
-      toast({ title: "Error", description: "Group not found", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Group not found",
+        variant: "destructive",
+      });
       router.push("/dashboard");
     }
   }, [isLoaded, isFetching, group, router, toast]);
@@ -136,11 +202,15 @@ export default function GroupPage() {
 
     const fetchMessages = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/messages/group/${groupId}`);
+        const res = await axios.get(`${API_BASE_URL}/messages/group/${groupId}`);
         setMessages(res.data.data);
       } catch (err) {
         console.error("Failed to fetch messages:", err);
-        toast({ title: "Error", description: "Failed to load messages", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Failed to load messages",
+          variant: "destructive",
+        });
       }
     };
     fetchMessages();
@@ -153,15 +223,27 @@ export default function GroupPage() {
       setMessages((prev) => [...prev, message]);
     });
 
+    socket.on("updateOnlineStatus", (updatedMembers: Member[]) => {
+      console.log("Updated online members:", updatedMembers);
+      setGroup((prevGroup) => 
+        prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
+      );
+    });
+  
     socket.on("error", (err) => {
       console.error("Socket error:", err);
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     });
-
+  
     initialized.current = true;
-
+  
     return () => {
       socket.off("receiveMessage");
+      socket.off("updateOnlineStatus");
       socket.off("error");
       socket.disconnect();
       initialized.current = false;
@@ -194,10 +276,17 @@ export default function GroupPage() {
     setIsSaving(true);
     try {
       await updateGroupSettings(groupId, { distanceThreshold });
-      toast({ title: "Success", description: "Group settings updated successfully!" });
+      toast({
+        title: "Success",
+        description: "Group settings updated successfully!",
+      });
       setSettingsDialogOpen(false);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to update settings", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update settings",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -206,7 +295,12 @@ export default function GroupPage() {
   const copyToClipboard = (text: string, successMessage: string) => {
     navigator.clipboard.writeText(text).then(
       () => toast({ title: "Copied!", description: successMessage }),
-      () => toast({ title: "Error", description: "Failed to copy", variant: "destructive" })
+      () =>
+        toast({
+          title: "Error",
+          description: "Failed to copy",
+          variant: "destructive",
+        })
     );
   };
 
@@ -225,6 +319,11 @@ export default function GroupPage() {
     return null; // Redirect will handle this
   }
 
+  const LazyMap = dynamic(() => import("@/components/Map/index"), {
+    ssr: false,
+    loading: () => <p>Loading...</p>,
+  });
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-16 z-10 border-b bg-background">
@@ -233,7 +332,9 @@ export default function GroupPage() {
             <MapPin className="h-5 w-5 text-primary" />
             <div>
               <h1 className="text-lg font-bold">{group.name}</h1>
-              <p className="text-xs text-muted-foreground">{group.members.length} members</p>
+              <p className="text-xs text-muted-foreground">
+                {group.members.length} members
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -247,7 +348,9 @@ export default function GroupPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Invite People to {group.name}</DialogTitle>
-                  <DialogDescription>Share this code or link to invite others.</DialogDescription>
+                  <DialogDescription>
+                    Share this code or link to invite others.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
@@ -257,7 +360,9 @@ export default function GroupPage() {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => copyToClipboard(group.code, "Invite code copied!")}
+                        onClick={() =>
+                          copyToClipboard(group.code, "Invite code copied!")
+                        }
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -265,12 +370,17 @@ export default function GroupPage() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={() => setInviteDialogOpen(false)}>Done</Button>
+                  <Button onClick={() => setInviteDialogOpen(false)}>
+                    Done
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
 
-            <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+            <Dialog
+              open={settingsDialogOpen}
+              onOpenChange={setSettingsDialogOpen}
+            >
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Settings className="h-4 w-4 mr-2" />
@@ -280,11 +390,15 @@ export default function GroupPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Group Settings</DialogTitle>
-                  <DialogDescription>Configure tracking and notification settings.</DialogDescription>
+                  <DialogDescription>
+                    Configure tracking and notification settings.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label>Distance Threshold ({distanceThreshold} meters)</Label>
+                    <Label>
+                      Distance Threshold ({distanceThreshold} meters)
+                    </Label>
                     <Slider
                       value={[distanceThreshold]}
                       min={100}
@@ -295,7 +409,10 @@ export default function GroupPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <Label>Share My Location</Label>
-                    <Switch checked={shareLocation} onCheckedChange={setShareLocation} />
+                    <Switch
+                      checked={shareLocation}
+                      onCheckedChange={setShareLocation}
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -309,7 +426,7 @@ export default function GroupPage() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="flex-1 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="border-b">
             <div className="container">
@@ -322,17 +439,20 @@ export default function GroupPage() {
                   <MessageSquare className="h-4 w-4" />
                   <span>Chat</span>
                 </TabsTrigger>
-                <TabsTrigger value="members" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="members"
+                  className="flex items-center gap-2"
+                >
                   <Users className="h-4 w-4" />
                   <span>Members</span>
                 </TabsTrigger>
               </TabsList>
             </div>
           </div>
-
+          <BackgroundBeams className="pointer-events-none"/>
           <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
-              <MapComponent locations={[]} />
+              <LazyMap location = {location} />
             </TabsContent>
 
             <TabsContent value="chat" className="mt-0">
@@ -342,16 +462,35 @@ export default function GroupPage() {
                     const isYou = message.senderId === user?.id;
 
                     return (
-                      <div key={message._id} className={`flex ${isYou ? "justify-end" : "justify-start"}`}>
-                        <div className={`flex gap-2 max-w-[80%] ${isYou ? "flex-row-reverse" : "flex-row"}`}>
+                      <div
+                        key={message._id}
+                        className={`flex ${
+                          isYou ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`flex gap-2 max-w-[80%] ${
+                            isYou ? "flex-row-reverse" : "flex-row"
+                          }`}
+                        >
                           <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage src={group.members.find((m: Member) => m.clerkId === message.senderId)?.avatar} />
-                            <AvatarFallback>{message.senderName.charAt(0)}</AvatarFallback>
+                            <AvatarImage
+                              src={
+                                group.members.find(
+                                  (m: Member) => m.clerkId === message.senderId
+                                )?.avatar
+                              }
+                            />
+                            <AvatarFallback>
+                              {message.senderName.charAt(0)}
+                            </AvatarFallback>
                           </Avatar>
                           <div>
                             <div
                               className={`rounded-lg px-3 py-2 ${
-                                isYou ? "bg-primary text-primary-foreground" : "bg-muted"
+                                isYou
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted"
                               }`}
                             >
                               <p>{message.content}</p>
@@ -363,7 +502,12 @@ export default function GroupPage() {
                             >
                               <span>{isYou ? "You" : message.senderName}</span>
                               <span>•</span>
-                              <span>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                              <span>
+                                {new Date(message.timestamp).toLocaleTimeString(
+                                  [],
+                                  { hour: "2-digit", minute: "2-digit" }
+                                )}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -373,7 +517,7 @@ export default function GroupPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="border-t pt-4">
+                <div className="border-t pt-4 fix-bottom">
                   <form
                     className="flex gap-2"
                     onSubmit={(e) => {
@@ -392,6 +536,7 @@ export default function GroupPage() {
                   </form>
                 </div>
               </div>
+              {/* <ChatTab groupId={groupId} members={group?.members}/> */}
             </TabsContent>
 
             <TabsContent value="members" className="mt-0">
@@ -403,18 +548,27 @@ export default function GroupPage() {
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={member.avatar} alt={member.name} />
-                            <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                            <AvatarImage
+                              src={member.avatar}
+                              alt={member.name}
+                            />
+                            <AvatarFallback>
+                              {member.name.charAt(0)}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="font-medium">{member.name}</h3>
-                              {member.clerkId === user?.id && <span className="text-xs text-muted-foreground">(You)</span>}
+                              {member.clerkId === user?.id && (
+                                <span className="text-xs text-muted-foreground">
+                                  (You)
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground flex items-center gap-1">
                               {member.isOnline ? (
                                 <>
-                                  <Wifi className="h-3 w-3 text-primary" />
+                                  <WifiHighIcon className="h-3 w-3 text-primary" />
                                   <span>Online</span>
                                 </>
                               ) : (
