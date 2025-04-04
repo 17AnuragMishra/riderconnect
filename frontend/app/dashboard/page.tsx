@@ -127,7 +127,7 @@ export default function Dashboard() {
     }
   };
 
-  if (!isLoaded) return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  if (!isLoaded) return <div className="flex max-h-screen items-center justify-center">Loading...</div>;
 
   return (
     <div className="flex-1 container py-6 px-4 md:py-12">
@@ -227,7 +227,6 @@ export default function Dashboard() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
           {groups.map((group: Group) => (
             <Card key={group._id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
