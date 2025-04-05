@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 export const CardSpotlight = ({
   children,
   radius = 350,
-  color = "#262626",
+  color = "hsl(var(--primary) / 0.12)",
   className,
   ...props
 }: {
@@ -35,7 +35,7 @@ export const CardSpotlight = ({
   return (
     <div
       className={cn(
-        "group/spotlight p-10 rounded-md relative border border-neutral-800 bg-black dark:border-neutral-800",
+        "group/spotlight p-10 rounded-md relative bg-gradient-to-br from-blue-50/80 via-indigo-50/50 to-white dark:from-gray-800 dark:via-gray-800/95 dark:to-gray-900 border border-blue-100/80 dark:border-gray-700 hover:border-primary/40 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-inner dark:hover:border-primary/40 transition-all duration-300",
         className
       )}
       onMouseMove={handleMouseMove}
@@ -44,7 +44,7 @@ export const CardSpotlight = ({
       {...props}
     >
       <motion.div
-        className="pointer-events-none absolute z-0 -inset-px rounded-md opacity-0 transition duration-300 group-hover/spotlight:opacity-100"
+        className="pointer-events-none absolute z-0 -inset-px rounded-md opacity-0 transition duration-300 group-hover/spotlight:opacity-100 bg-gradient-to-tr"
         style={{
           backgroundColor: color,
           maskImage: useMotionTemplate`
@@ -58,17 +58,20 @@ export const CardSpotlight = ({
       >
         {isHovering && (
           <CanvasRevealEffect
-            animationSpeed={5}
+            animationSpeed={2.5}
             containerClassName="bg-transparent absolute inset-0 pointer-events-none"
             colors={[
-              [59, 130, 246],
-              [139, 92, 246],
+              [79, 70, 229], // deep indigo
+              [59, 130, 246], // bright blue
+              [147, 51, 234]  // purple
             ]}
-            dotSize={3}
+            dotSize={2}
           />
         )}
       </motion.div>
-      {children}
+      <div className="relative z-10 [&>h3]:text-gray-900 [&>h3]:font-semibold [&>p]:text-gray-700 dark:text-gray-50">
+        {children}
+      </div>
     </div>
   );
 };

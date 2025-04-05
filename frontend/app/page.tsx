@@ -7,7 +7,20 @@ import { useUser } from "@clerk/nextjs"
 import { TypeAnimation } from 'react-type-animation';
 import { CardSpotlight } from "@/components/ui/card-spotlight";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { useGroups } from "@/contexts/group-context";
+import { useToast } from "@/hooks/use-toast";
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -32,7 +45,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, del
           <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-300" />
           {icon}
         </motion.div>
-        <h3 className="text-xl font-bold z-20 text-white group-hover:text-primary transition-colors duration-300 whitespace-nowrap">
+        <h3 className="text-xl font-bold z-20 text-gray-900 dark:text-white group-hover:text-primary transition-colors duration-300 whitespace-nowrap">
           {title}
         </h3>
         <p className="text-sm text-gray-500 text-center dark:text-gray-400 z-20 group-hover:text-gray-300 transition-colors duration-300">
@@ -50,6 +63,46 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, del
 
 export default function Home() {
   const userId = useUser().user?.id;
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [source, setSource] = useState("");
+  const [destination, setDestination] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const { createGroup } = useGroups();
+  const { toast } = useToast();
+  const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
+
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim() || !source.trim() || !destination.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const group = await createGroup(newGroupName, source, destination);
+      toast({
+        title: "Success",
+        description: `Group "${group.name}" created with code ${group.code}!`,
+      });
+      setNewGroupName("");
+      setSource("");
+      setDestination("");
+      setCreateDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create group",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
   
   useEffect(() => {
     // Add gradient animation keyframes to the document
@@ -595,24 +648,103 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        <section className="w-full py-12 md:py-24">
+        
+        {/* Ready to  get started section */}
+        <section className="w-full py-12 md:py-24 bg-gradient-to-b from-transparent via-muted/50 to-transparent">
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Ready to Get Started?</h2>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="flex flex-col items-center justify-center space-y-4 text-center"
+            >
+              <div className="space-y-2 relative">
+                <div className="absolute inset-0 blur-3xl bg-primary/5 rounded-full" />
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl relative">
+                  Ready to Get Started?
+                </h2>
                 <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-                  Join thousands of groups who stay connected with GroupTrack
+                  {userId ? 'Create your first group and start tracking together' : 'Join thousands of groups who stay connected with GroupTrack'}
                 </p>
               </div>
-              <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Link href="/sign-up">
-                  <Button size="lg" className="px-8">
-                    Sign Up Free
-                  </Button>
-                </Link>
-              </div>
-            </div>
+              <motion.div 
+                className="flex flex-col gap-2 min-[400px]:flex-row"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {userId ? (
+                  <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="lg" className="px-8 relative group overflow-hidden">
+                        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary via-primary/80 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <span className="relative">Create a Group</span>
+                        <motion.div
+                          className="absolute inset-0 rounded-lg ring-2 ring-primary/50"
+                          initial={false}
+                          whileHover={{ scale: 1.15 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create a New Group Ride</DialogTitle>
+                        <DialogDescription>
+                          Set up your ride and invite others.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="group-name">Group Name</Label>
+                          <Input
+                            id="group-name"
+                            placeholder="e.g., Road Trip 2025"
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="source">Source</Label>
+                          <Input
+                            id="source"
+                            placeholder="e.g., New York"
+                            value={source}
+                            onChange={(e) => setSource(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="destination">Destination</Label>
+                          <Input
+                            id="destination"
+                            placeholder="e.g., Boston"
+                            value={destination}
+                            onChange={(e) => setDestination(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handleCreateGroup} disabled={isCreating}>
+                          {isCreating ? "Creating..." : "Create Group"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Link href="/sign-up">
+                    <Button size="lg" className="px-8 relative group overflow-hidden">
+                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary via-primary/80 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <span className="relative">Sign Up Free</span>
+                      <motion.div
+                        className="absolute inset-0 rounded-lg ring-2 ring-primary/50"
+                        initial={false}
+                        whileHover={{ scale: 1.15 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </Button>
+                  </Link>
+                )}
+              </motion.div>
+            </motion.div>
           </div>
         </section>
       </main>
