@@ -67,7 +67,7 @@ export default function JoinPage() {
 
   if (!isLoaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex max-h-screen items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4">Loading...</p>
@@ -77,7 +77,7 @@ export default function JoinPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex max-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-2 mb-2">
