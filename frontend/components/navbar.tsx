@@ -1,20 +1,25 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MapPin, Users, Bell } from "lucide-react"
-import { useUser, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MapPin, Users, Bell } from "lucide-react";
+import { useUser, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 export default function Navbar() {
-  const pathname = usePathname()
-  const { user, isLoaded } = useUser()
+  const pathname = usePathname();
+  const { user, isLoaded } = useUser();
 
   // Don't show navbar on sign-in or sign-up pages
   if (pathname === "/sign-in" || pathname === "/sign-up") {
-    return null
+    return null;
   }
 
   return (
@@ -86,7 +91,9 @@ export default function Navbar() {
               />
             </div>
 
-            <ThemeToggle />
+            <div className="hidden md:flex">
+              <ThemeToggle />
+            </div>
 
             {/* Mobile menu for smaller screens */}
             <div className="md:hidden">
@@ -144,6 +151,9 @@ export default function Navbar() {
                       Notifications
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <ThemeToggle />
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -172,6 +182,5 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
-  )
+  );
 }
-

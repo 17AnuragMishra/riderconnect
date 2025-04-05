@@ -128,7 +128,6 @@ app.get('/messages/group/:groupId', async (req, res) => {
 // Socket.IO
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
-  
     socket.on('join', async ({ clerkId, groupId }) => {
         users[socket.id] = clerkId;
         socket.join(groupId);
@@ -261,4 +260,4 @@ io.on('connection', (socket) => {
   });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
