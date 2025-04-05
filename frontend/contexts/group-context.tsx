@@ -3,11 +3,13 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
+import io, { Socket } from "socket.io-client";
 
 interface Member {
   clerkId: string;
   name: string;
   avatar?: string;
+  isOnline?: boolean;
 }
 
 interface Group {
@@ -21,6 +23,9 @@ interface Group {
 }
 
 const GroupContext = createContext<any>(null);
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const socket: Socket = io(API_BASE_URL, { autoConnect: false });
 
 export function GroupProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoaded } = useUser();
@@ -38,11 +43,28 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    if (!user || !isLoaded) return;
+
     console.log("Current clerkId:", user?.id);
     fetchGroups();
-  }, [user, isLoaded]);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    socket.connect(); // Connect to Socket.io when user is loaded
+    socket.on('groupUpdate', (updatedGroup: Group) => {
+      console.log('Group updated:', updatedGroup);
+      setGroups((prev) => {
+        const updatedGroups = prev.map(g => g._id === updatedGroup._id ? updatedGroup : g);
+        if (!updatedGroups.some(g => g._id === updatedGroup._id)) {
+          updatedGroups.push(updatedGroup);
+        }
+        return updatedGroups;
+      });
+    });
+
+    return () => {
+      socket.off('groupUpdate');
+      socket.disconnect(); // Cleanup Socket.io connection
+    };
+  }, [user, isLoaded]);
 
   const createGroup = async (name: string, source: string, destination: string): Promise<Group> => {
     if (!user) throw new Error("User not authenticated");
@@ -76,7 +98,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
       });
       const joinedGroup = res.data;
       console.log("Joined group:", joinedGroup);
-      await fetchGroups(); // Ensure this runs and updates state
+      await fetchGroups();
       return joinedGroup;
     } catch (err) {
       console.error("Failed to join group:", err);
@@ -85,7 +107,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteGroup = async (id: string): Promise<void> => {
-    if (!user) throw new Error("User Authenticated nhi hai");
+    if (!user) throw new Error("User not authenticated");
     try {
       console.log("Deleting group with ID:", id, "for clerkId:", user.id);
       const res = await axios.delete(`${API_BASE_URL}/groups/${id}?clerkId=${user.id}`);
@@ -96,7 +118,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
       if (err.response?.status === 404) {
         throw new Error("group not found or maybe you don't have a permission to do so");
       } else if (err.response?.status === 403) {
-        throw new Error("nhi kar sakta permission nhi hai");
+        throw new Error("Not authorized to delete this group");
       }
       throw err;
     }
