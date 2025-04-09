@@ -1,5 +1,6 @@
 "use client";
 
+import "../[id]/chat.css";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ import ChatTab from "@/components/Chat/ChatTab";
 import axios from "axios";
 import io from "socket.io-client";
 import { BackgroundBeams } from "@/components/ui/background-beams";
+import { getMaxAge } from "next/dist/server/image-optimizer";
 
 const socket = io("http://localhost:5000", { autoConnect: false });
 
@@ -99,7 +101,7 @@ export default function GroupPage() {
     return null;
   }
   const [group, setGroup] = useState<Group | null>(null);
-  const [isFetching, setIsFetching] = useState(true); 
+  const [isFetching, setIsFetching] = useState(true);
   const [activeTab, setActiveTab] = useState("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -110,7 +112,9 @@ export default function GroupPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [ location, setLocation ] = useState();
+  const [location, setLocation] = useState();
+  const [tagging, setTagging] = useState(false);
+  const [space, setSpace] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
@@ -118,26 +122,24 @@ export default function GroupPage() {
   // yaha se user ki current location ko fetch kr rha h
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
+      navigator.geolocation.watchPosition((position) => {
         const { latitude, longitude } = position.coords;
         setLocation({ latitude, longitude });
-      });
+        console.log('location of currect user : ', latitude, longitude);
+        socket.emit('send-location', { location });
+      }, (error) => {
+        console.log(error);
+      },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 5000,
+    });
     }
-}, []);
+  }, []);
 
-// just for testing ki location update hote hi toast aa rha h ki ni
-useEffect(() => {
-    if (location) {  // Ensure location is not null
-        toast({
-            title: 'Location Retrieved',
-            description: `Latitude: ${location.latitude}, Longitude: ${location.longitude}`,
-            variant: 'default',
-        });
-    }
-}, [location]); // location change hone par chalega
-
-
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -149,7 +151,9 @@ useEffect(() => {
         let fetchedGroup = getGroup(groupId);
         console.log("Group from context:", fetchedGroup);
         if (!fetchedGroup) {
-          const res = await axios.get(`${API_BASE_URL}/groups?clerkId=${user.id}`);
+          const res = await axios.get(
+            `${API_BASE_URL}/groups?clerkId=${user.id}`
+          );
           console.log("Backend response:", res.data);
           fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
           console.log("Found group from backend:", fetchedGroup);
@@ -180,7 +184,6 @@ useEffect(() => {
 
     fetchGroup();
   }, [user, groupId, isLoaded, getGroup, toast, router]);
-  
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
@@ -202,7 +205,9 @@ useEffect(() => {
 
     const fetchMessages = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/messages/group/${groupId}`);
+        const res = await axios.get(
+          `${API_BASE_URL}/messages/group/${groupId}`
+        );
         setMessages(res.data.data);
       } catch (err) {
         console.error("Failed to fetch messages:", err);
@@ -225,11 +230,11 @@ useEffect(() => {
 
     socket.on("updateOnlineStatus", (updatedMembers: Member[]) => {
       console.log("Updated online members:", updatedMembers);
-      setGroup((prevGroup) => 
+      setGroup((prevGroup) =>
         prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
       );
     });
-  
+
     socket.on("error", (err) => {
       console.error("Socket error:", err);
       toast({
@@ -238,9 +243,9 @@ useEffect(() => {
         variant: "destructive",
       });
     });
-  
+
     initialized.current = true;
-  
+
     return () => {
       socket.off("receiveMessage");
       socket.off("updateOnlineStatus");
@@ -323,6 +328,25 @@ useEffect(() => {
     ssr: false,
     loading: () => <p>Loading...</p>,
   });
+
+  const checkingMessage = (e: any) => {
+    if (e.target.value === newMessage + "@") {
+      setTagging(true);
+      setNewMessage(e.target.value);
+      setSpace(false);
+    } else {
+      setTagging(false);
+      setNewMessage(e.target.value);
+    }
+  };
+
+  const clickOnMentionName = (name: any) => {
+    setNewMessage((prev) => {
+      return prev + name + " ";
+    });
+
+    setSpace(true);
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -449,10 +473,10 @@ useEffect(() => {
               </TabsList>
             </div>
           </div>
-          <BackgroundBeams className="pointer-events-none"/>
+          <BackgroundBeams className="pointer-events-none" />
           <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
-              <LazyMap location = {location} />
+              <LazyMap location={location} />
             </TabsContent>
 
             <TabsContent value="chat" className="mt-0">
@@ -517,6 +541,25 @@ useEffect(() => {
                   <div ref={messagesEndRef} />
                 </div>
 
+                <div className="listOMember">
+                  {tagging && !space ? (
+                    group.members.map((member) => {
+                      return (
+                        <div
+                          className="tagging p-2"
+                          onClick={() => {
+                            clickOnMentionName(member.name);
+                          }}
+                        >
+                          {member.name}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <></>
+                  )}
+                </div>
+
                 <div className="border-t pt-4 fix-bottom">
                   <form
                     className="flex gap-2"
@@ -528,7 +571,9 @@ useEffect(() => {
                     <Input
                       placeholder="Type your message..."
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={(e) => {
+                        checkingMessage(e);
+                      }}
                     />
                     <Button type="submit">
                       <Send className="h-4 w-4" />

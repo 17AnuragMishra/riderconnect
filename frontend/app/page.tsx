@@ -602,7 +602,7 @@ export default function Home() {
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Ready to Get Started?</h2>
                 <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-                  Join thousands of groups who stay connected with GroupTrack
+                  Join thousands of groups who stay connected with RiderConnect
                 </p>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -621,7 +621,7 @@ export default function Home() {
           <div className="flex flex-col gap-2 md:gap-4 lg:gap-6">
             <div className="flex items-center gap-2">
               <MapPin className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">GroupTrack</span>
+              <span className="text-xl font-bold">RiderConnect</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Stay connected with your group, wherever you go.</p>
           </div>
@@ -710,7 +710,7 @@ export default function Home() {
         </div>
         <div className="border-t py-6">
           <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
-            <p className="text-sm text-gray-500 dark:text-gray-400">© 2025 GroupTrack. All rights reserved.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">© 2025 RiderConnect. All rights reserved.</p>
             <div className="flex gap-4">
               <Link href="#" className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50">
                 <svg

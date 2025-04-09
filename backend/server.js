@@ -126,11 +126,6 @@ app.get('/messages/group/:groupId', async (req, res) => {
 
 // Socket.IO
 io.on('connection', (socket) => {
-    // console.log("the user id : ", socket);
-    // user.isOnline = 1;
-    // io.on('disconnect', () => {
-    //     !user.isOnline;
-    // })
     socket.on('join', async ({ clerkId, groupId }) => {
         users[socket.id] = clerkId;
         socket.join(groupId);
@@ -171,6 +166,10 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Failed to send message', error: err.message });
         }
     });
+
+    socket.on('send-location', async (data) => {
+        io.emit('recieve-location', { id: socket.id, ...data });
+    })
 
     socket.on('disconnect', async () => {
         const clerkId = users[socket.id];
