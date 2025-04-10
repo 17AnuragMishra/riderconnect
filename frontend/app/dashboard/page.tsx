@@ -65,7 +65,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
-    console.log("Current groups in dashboard:", groups); // Debug groups
+    console.log("Current groups in dashboard:", groups); 
   }, [isLoaded, user, groups]);
 
   const handleCreateGroup = async () => {
@@ -113,12 +113,12 @@ export default function Dashboard() {
   };
 
   const handleDeleteGroup = async (id: string, name: string) => {
-    console.log("Attempting to delete group with ID:", id); // Debug log
+    console.log("Attempting to delete group with ID:", id); 
     try {
       await deleteGroup(id);
       toast({ title: "Success", description: `Group "${name}" deleted!` });
     } catch (error: any) {
-      console.error("Delete error:", error); // Debug log
+      console.error("Delete error:", error); 
       toast({
         title: "Error",
         description: error.message || "Failed to delete group",
@@ -132,13 +132,10 @@ export default function Dashboard() {
   return (
     <div className="flex-1 container py-6 px-4 md:py-12">
       <div className="flex flex-col gap-8">
-        {/* Header */}
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold">Welcome, {user?.firstName || "User"}</h1>
           <p className="text-muted-foreground">Create or join group rides to track and chat</p>
         </div>
-
-        {/* Group Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>

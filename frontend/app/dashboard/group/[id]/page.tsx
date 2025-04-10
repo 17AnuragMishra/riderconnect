@@ -89,7 +89,7 @@ export default function GroupPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://riderconnect.vercel.app:5000";
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -148,7 +148,6 @@ export default function GroupPage() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [user, groupId, shareLocation, isLoaded]);
 
-  // Socket.io for locations and distance alerts
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
 
@@ -175,7 +174,7 @@ export default function GroupPage() {
         const alertKey = `${clerkId}-${otherClerkId}`;
         const lastToast = toastCooldown.get(alertKey) || 0;
         const now = Date.now();
-        if (now - lastToast > 60000) { // 1 minute cooldown
+        if (now - lastToast > 60000) { 
           const otherName = group?.members.find(m => m.clerkId === otherClerkId)?.name || otherClerkId;
           toast({
             title: 'Distance Alert',
@@ -220,7 +219,7 @@ export default function GroupPage() {
     fetchMessages();
   
     socket.connect();
-    console.log('Socket connected:', socket.connected); // Debug
+    console.log('Socket connected:', socket.connected); 
     socket.emit("join", { clerkId: user.id, groupId });
   
     socket.on("receiveMessage", (message: Message) => {
@@ -450,7 +449,7 @@ export default function GroupPage() {
               <MapComponent
                 location={location}
                 groupLocations={Array.from(groupLocations.entries())}
-                members={group?.members} // Changed from group to members
+                members={group?.members} 
               />
             ) : (
               <p>Loading map...</p>

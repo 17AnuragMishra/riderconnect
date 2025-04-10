@@ -13,22 +13,22 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { 
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST", "DELETE"],
-      allowedHeaders: ["Content-Type"],
-      credentials: true,
-    }, 
-  });
-  
+app.use(cors({
+  origin: ["https://your-vercel-app.vercel.app", "http://localhost:3000"],
+  methods: ["GET", "POST", "DELETE"],
+  allowedHeaders: ["Content-Type"],
+  credentials: true
+}));
 
-  app.use(cors({
-    origin: "*",  
+// And for Socket.io:
+const io = new Server(server, { 
+  cors: {
+    origin: ["https://your-vercel-app.vercel.app", "http://localhost:3000"],
     methods: ["GET", "POST", "DELETE"],
     allowedHeaders: ["Content-Type"],
-    credentials: false
-  }));
+    credentials: true,
+  }, 
+});
 app.use(express.json());
 
 const connectDB = async () => {
