@@ -22,6 +22,8 @@ class MockSocket {
     }, 500)
   }
 
+  // const socket 
+
   disconnect() {
     if (this.connected) {
       this.connected = false
