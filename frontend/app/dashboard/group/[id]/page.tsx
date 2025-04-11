@@ -116,6 +116,8 @@ export default function GroupPage() {
   const [tagging, setTagging] = useState(false);
   const [space, setSpace] = useState(true);
 
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [groupLocations, setGroupLocations] = useState<Map<string, { lat: number; lng: number; isOnline: boolean }>>(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
@@ -186,6 +188,75 @@ export default function GroupPage() {
   }, [user, groupId, isLoaded, getGroup, toast, router]);
 
   useEffect(() => {
+    if (!user || !groupId || !isLoaded) return;
+    if (activeTab === 'chat') {
+      socket.emit('viewingGroup', { groupId, clerkId: user.id });
+    }
+  }, [activeTab, user, groupId, isLoaded]);
+  
+  useEffect(() => {
+    if (!user || !groupId || !shareLocation || !isLoaded) return;
+  
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setLocation({ latitude, longitude });
+        socket.emit('updateLocation', { groupId, clerkId: user.id, lat: latitude, lng: longitude });
+      },
+      (err) => console.error('Geolocation error:', err),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [user, groupId, shareLocation, isLoaded]);
+
+  // Socket.io for locations and distance alerts
+  useEffect(() => {
+    if (!user || !groupId || !isLoaded) return;
+
+    socket.on('groupLocations', (locations: { clerkId: string; lat: number; lng: number; isOnline: boolean }[]) => {
+      const locationMap = new Map();
+      locations.forEach((loc) => {
+        if (loc.lat && loc.lng) {
+          locationMap.set(loc.clerkId, { lat: loc.lat, lng: loc.lng, isOnline: loc.isOnline });
+        }
+      });
+      setGroupLocations(locationMap);
+    });
+
+    socket.on('locationUpdate', (location: { clerkId: string; lat: number; lng: number; isOnline: boolean }) => {
+      if (location.lat && location.lng) {
+        setGroupLocations((prev) => new Map(prev).set(location.clerkId, { lat: location.lat, lng: location.lng, isOnline: location.isOnline }));
+      }
+    });
+
+    const toastCooldown = new Map();
+
+    socket.on('distanceAlert', ({ clerkId, otherClerkId, distance }) => {
+      if (clerkId === user.id || otherClerkId === user.id) {
+        const alertKey = `${clerkId}-${otherClerkId}`;
+        const lastToast = toastCooldown.get(alertKey) || 0;
+        const now = Date.now();
+        if (now - lastToast > 60000) { // 1 minute cooldown
+          const otherName = group?.members.find(m => m.clerkId === otherClerkId)?.name || otherClerkId;
+          toast({
+            title: 'Distance Alert',
+            description: `You are ${Math.round(distance / 1000)} km away from ${otherName}`,
+            variant: 'destructive',
+          });
+          toastCooldown.set(alertKey, now);
+        }
+      }
+    });
+
+    return () => {
+      socket.off('groupLocations');
+      socket.off('locationUpdate');
+      socket.off('distanceAlert');
+    };
+  }, [user, groupId, isLoaded, group, toast]);
+
+  useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
   }, [isLoaded, user]);
 
@@ -202,7 +273,7 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || initialized.current) return;
-
+  
     const fetchMessages = async () => {
       try {
         const res = await axios.get(
@@ -219,20 +290,28 @@ export default function GroupPage() {
       }
     };
     fetchMessages();
-
+  
     socket.connect();
+    console.log('Socket connected:', socket.connected); // Debug
     socket.emit("join", { clerkId: user.id, groupId });
-
+  
     socket.on("receiveMessage", (message: Message) => {
       console.log("Received message:", message);
       setMessages((prev) => [...prev, message]);
     });
-
-    socket.on("updateOnlineStatus", (updatedMembers: Member[]) => {
+  
+    socket.on('memberStatusUpdate', (updatedMembers: Member[]) => {
       console.log("Updated online members:", updatedMembers);
       setGroup((prevGroup) =>
         prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
       );
+      if (Array.isArray(updatedMembers)) {
+        setGroup((prevGroup) => 
+          prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
+        );
+      } else {
+        console.error("Received invalid members data:", updatedMembers);
+      }
     });
 
     socket.on("error", (err) => {
@@ -248,7 +327,7 @@ export default function GroupPage() {
 
     return () => {
       socket.off("receiveMessage");
-      socket.off("updateOnlineStatus");
+      socket.off("memberStatusUpdate");
       socket.off("error");
       socket.disconnect();
       initialized.current = false;
@@ -275,6 +354,33 @@ export default function GroupPage() {
     socket.emit("sendMessage", messageData);
     setNewMessage("");
   };
+
+  useEffect(() => {
+    if (!user || !groupId || !isLoaded) return;
+  
+    socket.on('newMessageNotification', ({ message, for: targetClerkId }) => {
+      console.log(`Received notification for ${targetClerkId}:`, message); 
+      if (targetClerkId === user.id) {
+        toast({
+          title: `New Message in ${group?.name}`,
+          description: message.content,
+          action: (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveTab('chat')}
+            >
+              View
+            </Button>
+          ),
+        });
+      }
+    });
+  
+    return () => {
+      socket.off('newMessageNotification');
+    };
+  }, [user, groupId, group?.name, isLoaded, toast]);
 
   const handleSaveSettings = async () => {
     if (!group || !groupId) return;
@@ -311,7 +417,7 @@ export default function GroupPage() {
 
   if (!isLoaded || isFetching) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex max-h-screen items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4">Loading...</p>
@@ -321,7 +427,7 @@ export default function GroupPage() {
   }
 
   if (!group) {
-    return null; // Redirect will handle this
+    return null; 
   }
 
   const LazyMap = dynamic(() => import("@/components/Map/index"), {
@@ -349,7 +455,7 @@ export default function GroupPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex max-h-screen flex-col">
       <header className="sticky top-16 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4">
@@ -479,6 +585,17 @@ export default function GroupPage() {
               <LazyMap location={location} />
             </TabsContent>
 
+          <TabsContent value="map" className="mt-0">
+            {location ? (
+              <MapComponent
+                location={location}
+                groupLocations={Array.from(groupLocations.entries())}
+                members={group?.members} // Changed from group to members
+              />
+            ) : (
+              <p>Loading map...</p>
+            )}
+          </TabsContent>
             <TabsContent value="chat" className="mt-0">
               <div className="flex flex-col h-[70vh]">
                 <div className="flex-1 overflow-y-auto mb-4 space-y-4">
