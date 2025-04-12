@@ -250,7 +250,7 @@ export default function Dashboard() {
                           className='list p-1'
                           key={index}
                           onClick={() => {
-                            setSource(place.display_name);
+                            setSource(place.display_name)
                             setSuggestedSource([]);
                           }}
                         >
