@@ -81,7 +81,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
-    console.log("Current groups in dashboard:", groups); // Debug groups
+    console.log("Current groups in dashboard:", groups); 
   }, [isLoaded, user, groups]);
 
   const handleCreateGroup = async () => {
@@ -151,13 +151,38 @@ export default function Dashboard() {
     }
   };
 
+  if (!isLoaded)
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        Loading...
+      </div>
+    );
+
+  const fetchSuggestion = async (place: string, sourceType: string) => {
+    if (place.length < 2) {
+      return;
+    }
+    try {
+      const url = `https://api.locationiq.com/v1/autocomplete?key=${LOCATION_IO_API_KEY}&q=${place}`;
+      const response = await axios.get(url);
+      if (sourceType === "source") {
+        setSuggestedSource(response.data);
+      } else {
+        setSuggestedDestination(response.data);
+      }
+      console.log(response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   const handleDeleteGroup = async (id: string, name: string) => {
-    console.log("Attempting to delete group with ID:", id); // Debug log
+    console.log("Attempting to delete group with ID:", id); 
     try {
       await deleteGroup(id);
       toast({ title: "Success", description: `Group "${name}" deleted!` });
     } catch (error: any) {
-      console.error("Delete error:", error); // Debug log
+      console.error("Delete error:", error); 
       toast({
         title: "Error",
         description: error.message || "Failed to delete group",
@@ -170,7 +195,6 @@ export default function Dashboard() {
   return (
     <div className="flex-1 container py-6 px-4 md:py-12">
       <div className="flex flex-col gap-8">
-        {/* Header */}
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold">
             Welcome, {user?.firstName || "User"}
@@ -179,8 +203,6 @@ export default function Dashboard() {
             Create or join group rides to track and chat
           </p>
         </div>
-
-        {/* Group Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
@@ -228,7 +250,7 @@ export default function Dashboard() {
                           className='list p-1'
                           key={index}
                           onClick={() => {
-                            setSource(place.display_name);
+                            setSource(place.display_name)
                             setSuggestedSource([]);
                           }}
                         >

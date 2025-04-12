@@ -110,45 +110,16 @@ export default function GroupPage() {
   const [shareLocation, setShareLocation] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [tagging, setTagging] = useState(false);
   const [space, setSpace] = useState(true);
-
-  const [location, setLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const [groupLocations, setGroupLocations] = useState<
-    Map<string, { lat: number; lng: number; isOnline: boolean }>
-  >(new Map());
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [groupLocations, setGroupLocations] = useState<Map<string, { lat: number; lng: number; isOnline: boolean }>>(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  // yaha se user ki current location ko fetch kr rha h
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setLocation({ latitude, longitude });
-          console.log("location of currect user : ", latitude, longitude);
-          socket.emit("send-location", { location });
-        },
-        (error) => {
-          console.log(error);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 5000,
-        }
-      );
-    }
-  }, []);
-
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://riderconnect.vercel.app:5000";
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -222,7 +193,6 @@ export default function GroupPage() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [user, groupId, shareLocation, isLoaded]);
 
-  // Socket.io for locations and distance alerts
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
 
@@ -277,11 +247,8 @@ export default function GroupPage() {
         const alertKey = `${clerkId}-${otherClerkId}`;
         const lastToast = toastCooldown.get(alertKey) || 0;
         const now = Date.now();
-        if (now - lastToast > 60000) {
-          // 1 minute cooldown
-          const otherName =
-            group?.members.find((m) => m.clerkId === otherClerkId)?.name ||
-            otherClerkId;
+        if (now - lastToast > 60000) { 
+          const otherName = group?.members.find(m => m.clerkId === otherClerkId)?.name || otherClerkId;
           toast({
             title: "Distance Alert",
             description: `You are ${Math.round(
@@ -337,7 +304,7 @@ export default function GroupPage() {
     fetchMessages();
 
     socket.connect();
-    console.log("Socket connected:", socket.connected); // Debug
+    console.log('Socket connected:', socket.connected); 
     socket.emit("join", { clerkId: user.id, groupId });
 
     socket.on("receiveMessage", (message: Message) => {
@@ -347,9 +314,6 @@ export default function GroupPage() {
 
     socket.on("memberStatusUpdate", (updatedMembers: Member[]) => {
       console.log("Updated online members:", updatedMembers);
-      setGroup((prevGroup) =>
-        prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
-      );
       if (Array.isArray(updatedMembers)) {
         setGroup((prevGroup) =>
           prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
@@ -495,7 +459,6 @@ export default function GroupPage() {
     setNewMessage((prev) => {
       return prev + name + " ";
     });
-
     setSpace(true);
   };
 
@@ -626,17 +589,17 @@ export default function GroupPage() {
           </div>
           <BackgroundBeams className="pointer-events-none" />
           <div className="container py-6 px-4">
-            <TabsContent value="map" className="mt-0">
-              {location ? (
-                <MapComponent
-                  location={location}
-                  groupLocations={Array.from(groupLocations.entries())}
-                  members={group?.members} // Changed from group to members
-                />
-              ) : (
-                <p>Loading map...</p>
-              )}
-            </TabsContent>
+          <TabsContent value="map" className="mt-0">
+            {location ? (
+              <MapComponent
+                location={location}
+                groupLocations={Array.from(groupLocations.entries())}
+                members={group?.members} 
+              />
+            ) : (
+              <p>Loading map...</p>
+            )}
+          </TabsContent>
             <TabsContent value="chat" className="mt-0">
               <div className="flex flex-col h-[70vh]">
                 <div className="flex-1 overflow-y-auto mb-4 space-y-4">
