@@ -1,63 +1,67 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.webpack.css";
-import "leaflet-defaulticon-compatibility";
+import { useUser } from "@clerk/nextjs";
+import L from 'leaflet';
 
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
-import { useMemo } from "react";
-
-// interface MapComponentProps {
-//   locations: any[];
-// }
-
-export default function MapComponent({ location }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  
-  const position = useMemo(() => [location.latitude, location.longitude], [location]);
-
-  // useEffect(() => {
-  //   // Mock map rendering (replace with real Mapbox/Google Maps integration)
-  //   if (mapRef.current) {
-  //     console.log("Map updated with locations:", locations);
-  //     locations.forEach((loc) => {
-  //       // Simulate avatar rendering with red circle if offline
-  //       console.log(`${loc.clerkId} at (${loc.latitude}, ${loc.longitude}), ${loc.isOnline ? "online" : "offline with red circle"}`);
-  //     });
-  //   }
-  // }, [locations]);
-
-//   var myIcon = L.icon({
-//     iconUrl: {},
-//     iconSize: [38, 95],
-//     iconAnchor: [22, 94],
-//     popupAnchor: [-3, -76],
-//     shadowUrl: '',
-//     shadowSize: [68, 95],
-//     shadowAnchor: [22, 94]
-// });
-
-  return (
-      <MapContainer
-        center={position}
-        zoom={11}
-        scrollWheelZoom={true}
-        style={{ height: "400px", width: "100%" }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Marker position={position}>
-          <Popup>
-            Your Location.
-          </Popup>
-        </Marker>
-      </MapContainer>
-    );
+interface MapComponentProps {
+  location: { latitude: number; longitude: number };
+  groupLocations: [string, { lat: number; lng: number; isOnline: boolean }][];
+  members?: { clerkId: string; name: string; avatar?: string }[];
 }
 
+function MapUpdater({ center, locations }: { center: L.LatLngTuple; locations: [string, { lat: number; lng: number; isOnline: boolean }][] }) {
+  const map = useMap();
+  useEffect(() => {
+    const bounds = L.latLngBounds([center]);
+    locations.forEach(([, { lat, lng }]) => bounds.extend([lat, lng]));
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }, [map, center, locations]);
+  return null;
+}
+
+function createAvatarIcon(avatarUrl?: string, isOnline?: boolean) {
+  return L.divIcon({
+    html: `
+      <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; border: 2px solid ${isOnline ? '#00ff00' : '#ff0000'};">
+        <img src="${avatarUrl || '/default-avatar.png'}" style="width: 100%; height: 100%; object-fit: cover;" />
+      </div>
+    `,
+    className: '', // Remove default Leaflet styling
+    iconSize: [32, 32],
+    iconAnchor: [16, 16], // Center the icon
+  });
+}
+
+export default function MapComponent({ location, groupLocations, members }: MapComponentProps) {
+  const position: L.LatLngTuple = [location.latitude, location.longitude];
+  const { user, isLoaded } = useUser();
+  return (
+    <MapContainer center={position} scrollWheelZoom={true} style={{ height: '550px', width: '100%' }}>
+      <TileLayer
+        attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <MapUpdater center={position} locations={groupLocations} />
+      <Marker position={position} icon={createAvatarIcon(members?.find(m => m.clerkId === user?.id)?.avatar, true)}>
+        <Popup>Your Location</Popup>
+      </Marker>
+      {groupLocations.map(([clerkId, { lat, lng, isOnline }]) => (
+        <Marker
+          key={clerkId}
+          position={[lat, lng] as L.LatLngTuple}
+          icon={createAvatarIcon(members?.find(m => m.clerkId === clerkId)?.avatar, isOnline)}
+        >
+          <Popup>
+            {members?.find(m => m.clerkId === clerkId)?.name || clerkId} - {isOnline ? 'Online' : 'Offline'}
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
 
 // import React, { useRef } from "react";
 // import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";

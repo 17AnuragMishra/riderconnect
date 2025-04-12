@@ -7,27 +7,28 @@ import dotenv from 'dotenv';
 import Group from './models/Group.js';
 import Message from './models/Message.js';
 import UserLocation from './models/UserLocation.js';
+import { getDistance } from 'geolib';
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { 
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-      allowedHeaders: ["Content-Type"],
-      credentials: true,
-    }, 
-  });
-  
+app.use(cors({
+  origin: ["https://your-vercel-app.vercel.app", "http://localhost:3000"],
+  methods: ["GET", "POST", "DELETE"],
+  allowedHeaders: ["Content-Type"],
+  credentials: true
+}));
 
-  app.use(cors({
-    origin: "*",  
-    methods: ["GET", "POST"],
+// And for Socket.io:
+const io = new Server(server, { 
+  cors: {
+    origin: ["https://your-vercel-app.vercel.app", "http://localhost:3000"],
+    methods: ["GET", "POST", "DELETE"],
     allowedHeaders: ["Content-Type"],
-    credentials: false
-  }));
+    credentials: true,
+  }, 
+});
 app.use(express.json());
 
 const connectDB = async () => {
@@ -43,7 +44,7 @@ connectDB();
 
 const users = {};
 const groupSockets = {};
-
+const viewingState = {};
 app.post('/groups/create', async (req, res) => {
     const { name, source, destination, clerkId, clerkName, clerkAvatar } = req.body;
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -98,20 +99,20 @@ app.delete('/groups/:id', async (req, res) => {
     const { id } = req.params;
     const { clerkId } = req.query;
     try {
-        const group = await Group.findOne({ _id: id });
-        if (!group) return res.status(404).json({ error: 'Group not found' });
-        if (!group.members.some(m => m.clerkId === clerkId)) {
-            return res.status(403).json({ error: 'Not authorized to delete this group' });
-        }
-        await Group.deleteOne({ _id: id });
-        await Message.deleteMany({ groupId: id });
-        await UserLocation.deleteMany({ groupId: id });
-        res.json({ success: true });
+      const group = await Group.findOne({ _id: id });
+      if (!group) return res.status(404).json({ error: 'Group not found' });
+      if (!group.members.some(m => m.clerkId === clerkId)) {
+        return res.status(403).json({ error: 'Not authorized to delete this group' });
+      }
+      await Group.deleteOne({ _id: id });
+      await Message.deleteMany({ groupId: id });
+      await UserLocation.deleteMany({ groupId: id });
+      res.json({ success: true });
     } catch (err) {
-        console.error('Delete group error:', err);
-        res.status(500).json({ error: err.message });
+      console.error('Delete group error:', err);
+      res.status(500).json({ error: err.message });
     }
-});
+  });
 
 app.get('/messages/group/:groupId', async (req, res) => {
     console.log('Fetching messages for groupId:', req.params.groupId);
@@ -133,38 +134,98 @@ io.on('connection', (socket) => {
         groupSockets[groupId].push(socket.id);
         console.log(`User ${clerkId} joined group ${groupId}`);
         try {
-            await Group.findOneAndUpdate(
-                { _id: groupId, "members.clerkId": clerkId },
-                { $set: { "members.$.isOnline": true } },
-                { new: true }
-            );
-
-            io.to(groupId).emit('memberStatusUpdate', { clerkId, isOnline: true });
+          const group = await Group.findOneAndUpdate(
+            { _id: groupId, "members.clerkId": clerkId },
+            { $set: { "members.$.isOnline": true } },
+            { new: true }
+          );
+          if (group && Array.isArray(group.members)) {
+            io.to(groupId).emit('memberStatusUpdate', group.members);
+          } else {
+            console.error(`Invalid group or members for ${groupId}:`, group);
+          }
+          const location = await UserLocation.findOneAndUpdate(
+            { groupId, clerkId },
+            { groupId, clerkId, isOnline: true, lastUpdated: new Date() },
+            { upsert: true, new: true }
+          );
+          io.to(groupId).emit('locationUpdate', location);
+          const groupLocations = await UserLocation.find({ groupId });
+          socket.emit('groupLocations', groupLocations);
+          if (group) io.emit('groupUpdate', group);
         } catch (err) {
-            console.error(`Error updating isOnline on join:`, err.message);
+          console.error('Error in join:', err);
+          socket.emit('error', { message: 'Failed to join group', error: err.message });
         }
+      });
+  
+      socket.on('sendMessage', async ({ groupId, clerkId, clerkName, content }) => {
         try {
-            const location = await UserLocation.findOneAndUpdate(
-                { groupId, clerkId },
-                { groupId, clerkId, isOnline: true, lastUpdated: new Date() },
-                { upsert: true, new: true }
-            );
-            io.to(groupId).emit('locationUpdate', location); // Broadcast status 
+          const message = new Message({ groupId, senderId: clerkId, senderName: clerkName, content });
+          await message.save();
+          io.to(groupId).emit('receiveMessage', message);
+      
+          const group = await Group.findById(groupId);
+          if (!group) {
+            console.error(`Group ${groupId} not found`);
+            return;
+          }
+      
+          console.log(`Processing notifications for group ${groupId}, sender: ${clerkId}`);
+          group.members.forEach((member) => {
+            if (member.clerkId === clerkId) return;
+            console.log(`Member ${member.clerkId}: isOnline=${member.isOnline}, viewing=${viewingState[member.clerkId]}`);
+            if (!member.isOnline) {
+              console.log(`Queue offline notification for ${member.clerkId}: New message in ${group.name} - "${content}"`);
+            } else if (viewingState[member.clerkId] !== groupId) {
+              console.log(`Sending notification to ${member.clerkId} (online, not viewing ${groupId})`);
+              io.to(groupId).emit('newMessageNotification', { message, for: member.clerkId });
+            } else {
+              console.log(`No notification for ${member.clerkId} (viewing ${groupId})`);
+            }
+          });
         } catch (err) {
-            console.error(`Error updating UserLocation on join:`, err.message);
+          console.error('Send message error:', err);
+          socket.emit('error', { message: 'Failed to send message', error: err.message });
         }
-    });
+      });
+  
+      socket.on('viewingGroup', ({ groupId, clerkId }) => {
+        viewingState[clerkId] = groupId;
+        console.log(`User ${clerkId} viewing group: ${groupId || 'none'}`);
+        console.log('Current viewingState:', viewingState); // Debug
+      });
+    
+    const distanceAlertCooldown = new Map();
 
-    socket.on('sendMessage', async ({ groupId, clerkId, clerkName, content }) => {
-        console.log('sendMessage:', { groupId, clerkId, content });
-        try {
-            const message = new Message({ groupId, senderId: clerkId, senderName: clerkName, content });
-            await message.save();
-            io.to(groupId).emit('receiveMessage', message);
-        } catch (err) {
-            console.error('Send message error:', err);
-            socket.emit('error', { message: 'Failed to send message', error: err.message });
+    socket.on('updateLocation', async ({ groupId, clerkId, lat, lng }) => {
+  try {
+    const location = await UserLocation.findOneAndUpdate(
+      { groupId, clerkId },
+      { lat, lng, lastUpdated: new Date() },
+      { upsert: true, new: true }
+    );
+    io.to(groupId).emit('locationUpdate', location);
+
+    const groupLocations = await UserLocation.find({ groupId });
+    groupLocations.forEach((otherLoc) => {
+      if (otherLoc.clerkId !== clerkId && otherLoc.lat && otherLoc.lng) {
+        const distance = getDistance(
+          { latitude: lat, longitude: lng },
+          { latitude: otherLoc.lat, longitude: otherLoc.lng }
+        );
+        const alertKey = `${clerkId}-${otherLoc.clerkId}`;
+        const lastAlert = distanceAlertCooldown.get(alertKey) || 0;
+        const now = Date.now();
+        if (distance > 1000 && (now - lastAlert) > 60000) { 
+          io.to(groupId).emit('distanceAlert', {
+            clerkId,
+            otherClerkId: otherLoc.clerkId,
+            distance,
+          });
+          distanceAlertCooldown.set(alertKey, now);
         }
+      }
     });
 
     socket.on('send-location', async (data) => {
@@ -172,27 +233,30 @@ io.on('connection', (socket) => {
     })
 
     socket.on('disconnect', async () => {
-        const clerkId = users[socket.id];
-        console.log('User disconnected:', socket.id, 'clerkId:', clerkId);
-        if (!clerkId) return;
-        delete users[socket.id];
-        for (const groupId in groupSockets) {
-            groupSockets[groupId] = groupSockets[groupId].filter((id) => id !== socket.id);
-
-            try {
-                await Group.findOneAndUpdate(
-                    { _id: groupId, "members.clerkId": clerkId },
-                    { $set: { "members.$.isOnline": false } },
-                    { new: true }
-                );
-
-                io.to(groupId).emit('memberStatusUpdate', { clerkId, isOnline: false });
-            } catch (err) {
-                console.error(`Error updating isOnline on disconnect for ${clerkId}:`, err);
-            }
+      const clerkId = users[socket.id];
+      if (!clerkId) return;
+      console.log('User disconnected:', socket.id, 'clerkId:', clerkId);
+      delete users[socket.id];
+      for (const groupId in groupSockets) {
+        groupSockets[groupId] = groupSockets[groupId].filter(id => id !== socket.id);
+        try {
+          const group = await Group.findOneAndUpdate(
+            { _id: groupId, "members.clerkId": clerkId },
+            { $set: { "members.$.isOnline": false } },
+            { new: true }
+          );
+          if (group && Array.isArray(group.members)) {
+            io.to(groupId).emit('memberStatusUpdate', group.members);
+            io.emit('groupUpdate', group);
+          } else {
+            console.error(`Invalid group or members for ${groupId}:`, group);
+          }
+        } catch (err) {
+          console.error('Error in disconnect:', err);
         }
+      }
     });
-});
+  });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

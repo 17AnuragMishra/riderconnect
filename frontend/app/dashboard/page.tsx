@@ -81,7 +81,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
-    console.log("Current groups in dashboard:", groups); // Debug groups
+    console.log("Current groups in dashboard:", groups); 
   }, [isLoaded, user, groups]);
 
   const handleCreateGroup = async () => {
@@ -151,21 +151,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteGroup = async (id: string, name: string) => {
-    console.log("Attempting to delete group with ID:", id); // Debug log
-    try {
-      await deleteGroup(id);
-      toast({ title: "Success", description: `Group "${name}" deleted!` });
-    } catch (error: any) {
-      console.error("Delete error:", error); // Debug log
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete group",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (!isLoaded)
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -189,12 +174,27 @@ export default function Dashboard() {
     } catch (error) {
       console.log(error);
     }
+  }
+
+  const handleDeleteGroup = async (id: string, name: string) => {
+    console.log("Attempting to delete group with ID:", id); 
+    try {
+      await deleteGroup(id);
+      toast({ title: "Success", description: `Group "${name}" deleted!` });
+    } catch (error: any) {
+      console.error("Delete error:", error); 
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete group",
+        variant: "destructive",
+      });
+    }
   };
 
+  if (!isLoaded) return <div className="flex max-h-screen items-center justify-center">Loading...</div>;
   return (
     <div className="flex-1 container py-6 px-4 md:py-12">
       <div className="flex flex-col gap-8">
-        {/* Header */}
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold">
             Welcome, {user?.firstName || "User"}
@@ -203,8 +203,6 @@ export default function Dashboard() {
             Create or join group rides to track and chat
           </p>
         </div>
-
-        {/* Group Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
@@ -252,7 +250,7 @@ export default function Dashboard() {
                           className='list p-1'
                           key={index}
                           onClick={() => {
-                            setSource(place.display_name);
+                            setSource(place.display_name)
                             setSuggestedSource([]);
                           }}
                         >
@@ -335,7 +333,6 @@ export default function Dashboard() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
           {groups.map((group: Group) => (
             <Card key={group._id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
