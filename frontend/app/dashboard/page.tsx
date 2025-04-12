@@ -151,6 +151,31 @@ export default function Dashboard() {
     }
   };
 
+  if (!isLoaded)
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        Loading...
+      </div>
+    );
+
+  const fetchSuggestion = async (place: string, sourceType: string) => {
+    if (place.length < 2) {
+      return;
+    }
+    try {
+      const url = `https://api.locationiq.com/v1/autocomplete?key=${LOCATION_IO_API_KEY}&q=${place}`;
+      const response = await axios.get(url);
+      if (sourceType === "source") {
+        setSuggestedSource(response.data);
+      } else {
+        setSuggestedDestination(response.data);
+      }
+      console.log(response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   const handleDeleteGroup = async (id: string, name: string) => {
     console.log("Attempting to delete group with ID:", id); 
     try {
