@@ -112,31 +112,38 @@ export default function GroupPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [location, setLocation] = useState();
   const [tagging, setTagging] = useState(false);
   const [space, setSpace] = useState(true);
 
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [groupLocations, setGroupLocations] = useState<Map<string, { lat: number; lng: number; isOnline: boolean }>>(new Map());
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [groupLocations, setGroupLocations] = useState<
+    Map<string, { lat: number; lng: number; isOnline: boolean }>
+  >(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
   // yaha se user ki current location ko fetch kr rha h
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.watchPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        setLocation({ latitude, longitude });
-        console.log('location of currect user : ', latitude, longitude);
-        socket.emit('send-location', { location });
-      }, (error) => {
-        console.log(error);
-      },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 5000,
-    });
+      navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setLocation({ latitude, longitude });
+          console.log("location of currect user : ", latitude, longitude);
+          socket.emit("send-location", { location });
+        },
+        (error) => {
+          console.log(error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 5000,
+        }
+      );
     }
   }, []);
 
@@ -189,24 +196,29 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
-    if (activeTab === 'chat') {
-      socket.emit('viewingGroup', { groupId, clerkId: user.id });
+    if (activeTab === "chat") {
+      socket.emit("viewingGroup", { groupId, clerkId: user.id });
     }
   }, [activeTab, user, groupId, isLoaded]);
-  
+
   useEffect(() => {
     if (!user || !groupId || !shareLocation || !isLoaded) return;
-  
+
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         setLocation({ latitude, longitude });
-        socket.emit('updateLocation', { groupId, clerkId: user.id, lat: latitude, lng: longitude });
+        socket.emit("updateLocation", {
+          groupId,
+          clerkId: user.id,
+          lat: latitude,
+          lng: longitude,
+        });
       },
-      (err) => console.error('Geolocation error:', err),
+      (err) => console.error("Geolocation error:", err),
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
-  
+
     return () => navigator.geolocation.clearWatch(watchId);
   }, [user, groupId, shareLocation, isLoaded]);
 
@@ -214,35 +226,68 @@ export default function GroupPage() {
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
 
-    socket.on('groupLocations', (locations: { clerkId: string; lat: number; lng: number; isOnline: boolean }[]) => {
-      const locationMap = new Map();
-      locations.forEach((loc) => {
-        if (loc.lat && loc.lng) {
-          locationMap.set(loc.clerkId, { lat: loc.lat, lng: loc.lng, isOnline: loc.isOnline });
-        }
-      });
-      setGroupLocations(locationMap);
-    });
-
-    socket.on('locationUpdate', (location: { clerkId: string; lat: number; lng: number; isOnline: boolean }) => {
-      if (location.lat && location.lng) {
-        setGroupLocations((prev) => new Map(prev).set(location.clerkId, { lat: location.lat, lng: location.lng, isOnline: location.isOnline }));
+    socket.on(
+      "groupLocations",
+      (
+        locations: {
+          clerkId: string;
+          lat: number;
+          lng: number;
+          isOnline: boolean;
+        }[]
+      ) => {
+        const locationMap = new Map();
+        locations.forEach((loc) => {
+          if (loc.lat && loc.lng) {
+            locationMap.set(loc.clerkId, {
+              lat: loc.lat,
+              lng: loc.lng,
+              isOnline: loc.isOnline,
+            });
+          }
+        });
+        setGroupLocations(locationMap);
       }
-    });
+    );
+
+    socket.on(
+      "locationUpdate",
+      (location: {
+        clerkId: string;
+        lat: number;
+        lng: number;
+        isOnline: boolean;
+      }) => {
+        if (location.lat && location.lng) {
+          setGroupLocations((prev) =>
+            new Map(prev).set(location.clerkId, {
+              lat: location.lat,
+              lng: location.lng,
+              isOnline: location.isOnline,
+            })
+          );
+        }
+      }
+    );
 
     const toastCooldown = new Map();
 
-    socket.on('distanceAlert', ({ clerkId, otherClerkId, distance }) => {
+    socket.on("distanceAlert", ({ clerkId, otherClerkId, distance }) => {
       if (clerkId === user.id || otherClerkId === user.id) {
         const alertKey = `${clerkId}-${otherClerkId}`;
         const lastToast = toastCooldown.get(alertKey) || 0;
         const now = Date.now();
-        if (now - lastToast > 60000) { // 1 minute cooldown
-          const otherName = group?.members.find(m => m.clerkId === otherClerkId)?.name || otherClerkId;
+        if (now - lastToast > 60000) {
+          // 1 minute cooldown
+          const otherName =
+            group?.members.find((m) => m.clerkId === otherClerkId)?.name ||
+            otherClerkId;
           toast({
-            title: 'Distance Alert',
-            description: `You are ${Math.round(distance / 1000)} km away from ${otherName}`,
-            variant: 'destructive',
+            title: "Distance Alert",
+            description: `You are ${Math.round(
+              distance / 1000
+            )} km away from ${otherName}`,
+            variant: "destructive",
           });
           toastCooldown.set(alertKey, now);
         }
@@ -250,9 +295,9 @@ export default function GroupPage() {
     });
 
     return () => {
-      socket.off('groupLocations');
-      socket.off('locationUpdate');
-      socket.off('distanceAlert');
+      socket.off("groupLocations");
+      socket.off("locationUpdate");
+      socket.off("distanceAlert");
     };
   }, [user, groupId, isLoaded, group, toast]);
 
@@ -273,7 +318,7 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || initialized.current) return;
-  
+
     const fetchMessages = async () => {
       try {
         const res = await axios.get(
@@ -290,23 +335,23 @@ export default function GroupPage() {
       }
     };
     fetchMessages();
-  
+
     socket.connect();
-    console.log('Socket connected:', socket.connected); // Debug
+    console.log("Socket connected:", socket.connected); // Debug
     socket.emit("join", { clerkId: user.id, groupId });
-  
+
     socket.on("receiveMessage", (message: Message) => {
       console.log("Received message:", message);
       setMessages((prev) => [...prev, message]);
     });
-  
-    socket.on('memberStatusUpdate', (updatedMembers: Member[]) => {
+
+    socket.on("memberStatusUpdate", (updatedMembers: Member[]) => {
       console.log("Updated online members:", updatedMembers);
       setGroup((prevGroup) =>
         prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
       );
       if (Array.isArray(updatedMembers)) {
-        setGroup((prevGroup) => 
+        setGroup((prevGroup) =>
           prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
         );
       } else {
@@ -357,9 +402,9 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
-  
-    socket.on('newMessageNotification', ({ message, for: targetClerkId }) => {
-      console.log(`Received notification for ${targetClerkId}:`, message); 
+
+    socket.on("newMessageNotification", ({ message, for: targetClerkId }) => {
+      console.log(`Received notification for ${targetClerkId}:`, message);
       if (targetClerkId === user.id) {
         toast({
           title: `New Message in ${group?.name}`,
@@ -368,7 +413,7 @@ export default function GroupPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setActiveTab('chat')}
+              onClick={() => setActiveTab("chat")}
             >
               View
             </Button>
@@ -376,9 +421,9 @@ export default function GroupPage() {
         });
       }
     });
-  
+
     return () => {
-      socket.off('newMessageNotification');
+      socket.off("newMessageNotification");
     };
   }, [user, groupId, group?.name, isLoaded, toast]);
 
@@ -427,7 +472,7 @@ export default function GroupPage() {
   }
 
   if (!group) {
-    return null; 
+    return null;
   }
 
   const LazyMap = dynamic(() => import("@/components/Map/index"), {
@@ -582,20 +627,16 @@ export default function GroupPage() {
           <BackgroundBeams className="pointer-events-none" />
           <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
-              <LazyMap location={location} />
+              {location ? (
+                <MapComponent
+                  location={location}
+                  groupLocations={Array.from(groupLocations.entries())}
+                  members={group?.members} // Changed from group to members
+                />
+              ) : (
+                <p>Loading map...</p>
+              )}
             </TabsContent>
-
-          <TabsContent value="map" className="mt-0">
-            {location ? (
-              <MapComponent
-                location={location}
-                groupLocations={Array.from(groupLocations.entries())}
-                members={group?.members} // Changed from group to members
-              />
-            ) : (
-              <p>Loading map...</p>
-            )}
-          </TabsContent>
             <TabsContent value="chat" className="mt-0">
               <div className="flex flex-col h-[70vh]">
                 <div className="flex-1 overflow-y-auto mb-4 space-y-4">
