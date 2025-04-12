@@ -110,6 +110,8 @@ export default function GroupPage() {
   const [shareLocation, setShareLocation] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [tagging, setTagging] = useState(false);
+  const [space, setSpace] = useState(true);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -422,7 +424,6 @@ export default function GroupPage() {
     setNewMessage((prev) => {
       return prev + name + " ";
     });
-
     setSpace(true);
   };
 
