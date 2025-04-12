@@ -753,7 +753,7 @@ export default function Home() {
           <div className="flex flex-col gap-2 md:gap-4 lg:gap-6">
             <div className="flex items-center gap-2">
               <MapPin className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">GroupTrack</span>
+              <span className="text-xl font-bold">RiderConnect</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Stay connected with your group, wherever you go.</p>
           </div>
@@ -842,7 +842,7 @@ export default function Home() {
         </div>
         <div className="border-t py-6">
           <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
-            <p className="text-sm text-gray-500 dark:text-gray-400">© 2025 GroupTrack. All rights reserved.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">© 2025 RiderConnect. All rights reserved.</p>
             <div className="flex gap-4">
               <Link href="#" className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50">
                 <svg

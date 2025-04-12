@@ -1,5 +1,6 @@
 "use client";
 
+import "../[id]/chat.css";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ import ChatTab from "@/components/Chat/ChatTab";
 import axios from "axios";
 import io from "socket.io-client";
 import { BackgroundBeams } from "@/components/ui/background-beams";
+import { getMaxAge } from "next/dist/server/image-optimizer";
 
 const socket = io("http://localhost:5000", { autoConnect: false });
 
@@ -99,7 +101,7 @@ export default function GroupPage() {
     return null;
   }
   const [group, setGroup] = useState<Group | null>(null);
-  const [isFetching, setIsFetching] = useState(true); 
+  const [isFetching, setIsFetching] = useState(true);
   const [activeTab, setActiveTab] = useState("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -108,6 +110,8 @@ export default function GroupPage() {
   const [shareLocation, setShareLocation] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [tagging, setTagging] = useState(false);
+  const [space, setSpace] = useState(true);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -127,7 +131,9 @@ export default function GroupPage() {
         let fetchedGroup = getGroup(groupId);
         console.log("Group from context:", fetchedGroup);
         if (!fetchedGroup) {
-          const res = await axios.get(`${API_BASE_URL}/groups?clerkId=${user.id}`);
+          const res = await axios.get(
+            `${API_BASE_URL}/groups?clerkId=${user.id}`
+          );
           console.log("Backend response:", res.data);
           fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
           console.log("Found group from backend:", fetchedGroup);
@@ -161,49 +167,82 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
-    if (activeTab === 'chat') {
-      socket.emit('viewingGroup', { groupId, clerkId: user.id });
+    if (activeTab === "chat") {
+      socket.emit("viewingGroup", { groupId, clerkId: user.id });
     }
   }, [activeTab, user, groupId, isLoaded]);
-  
+
   useEffect(() => {
     if (!user || !groupId || !shareLocation || !isLoaded) return;
-  
+
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         setLocation({ latitude, longitude });
-        socket.emit('updateLocation', { groupId, clerkId: user.id, lat: latitude, lng: longitude });
+        socket.emit("updateLocation", {
+          groupId,
+          clerkId: user.id,
+          lat: latitude,
+          lng: longitude,
+        });
       },
-      (err) => console.error('Geolocation error:', err),
+      (err) => console.error("Geolocation error:", err),
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
-  
+
     return () => navigator.geolocation.clearWatch(watchId);
   }, [user, groupId, shareLocation, isLoaded]);
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
 
-    socket.on('groupLocations', (locations: { clerkId: string; lat: number; lng: number; isOnline: boolean }[]) => {
-      const locationMap = new Map();
-      locations.forEach((loc) => {
-        if (loc.lat && loc.lng) {
-          locationMap.set(loc.clerkId, { lat: loc.lat, lng: loc.lng, isOnline: loc.isOnline });
-        }
-      });
-      setGroupLocations(locationMap);
-    });
-
-    socket.on('locationUpdate', (location: { clerkId: string; lat: number; lng: number; isOnline: boolean }) => {
-      if (location.lat && location.lng) {
-        setGroupLocations((prev) => new Map(prev).set(location.clerkId, { lat: location.lat, lng: location.lng, isOnline: location.isOnline }));
+    socket.on(
+      "groupLocations",
+      (
+        locations: {
+          clerkId: string;
+          lat: number;
+          lng: number;
+          isOnline: boolean;
+        }[]
+      ) => {
+        const locationMap = new Map();
+        locations.forEach((loc) => {
+          if (loc.lat && loc.lng) {
+            locationMap.set(loc.clerkId, {
+              lat: loc.lat,
+              lng: loc.lng,
+              isOnline: loc.isOnline,
+            });
+          }
+        });
+        setGroupLocations(locationMap);
       }
-    });
+    );
+
+    socket.on(
+      "locationUpdate",
+      (location: {
+        clerkId: string;
+        lat: number;
+        lng: number;
+        isOnline: boolean;
+      }) => {
+        if (location.lat && location.lng) {
+          setGroupLocations((prev) =>
+            new Map(prev).set(location.clerkId, {
+              lat: location.lat,
+              lng: location.lng,
+              isOnline: location.isOnline,
+            })
+          );
+        }
+      }
+    );
 
     const toastCooldown = new Map();
 
-    socket.on('distanceAlert', ({ clerkId, otherClerkId, distance }) => {
+    socket.on("distanceAlert", ({ clerkId, otherClerkId, distance }) => {
       if (clerkId === user.id || otherClerkId === user.id) {
         const alertKey = `${clerkId}-${otherClerkId}`;
         const lastToast = toastCooldown.get(alertKey) || 0;
@@ -211,9 +250,11 @@ export default function GroupPage() {
         if (now - lastToast > 60000) { 
           const otherName = group?.members.find(m => m.clerkId === otherClerkId)?.name || otherClerkId;
           toast({
-            title: 'Distance Alert',
-            description: `You are ${Math.round(distance / 1000)} km away from ${otherName}`,
-            variant: 'destructive',
+            title: "Distance Alert",
+            description: `You are ${Math.round(
+              distance / 1000
+            )} km away from ${otherName}`,
+            variant: "destructive",
           });
           toastCooldown.set(alertKey, now);
         }
@@ -221,9 +262,9 @@ export default function GroupPage() {
     });
 
     return () => {
-      socket.off('groupLocations');
-      socket.off('locationUpdate');
-      socket.off('distanceAlert');
+      socket.off("groupLocations");
+      socket.off("locationUpdate");
+      socket.off("distanceAlert");
     };
   }, [user, groupId, isLoaded, group, toast]);
 
@@ -244,10 +285,12 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || initialized.current) return;
-  
+
     const fetchMessages = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/messages/group/${groupId}`);
+        const res = await axios.get(
+          `${API_BASE_URL}/messages/group/${groupId}`
+        );
         setMessages(res.data.data);
       } catch (err) {
         console.error("Failed to fetch messages:", err);
@@ -259,27 +302,27 @@ export default function GroupPage() {
       }
     };
     fetchMessages();
-  
+
     socket.connect();
     console.log('Socket connected:', socket.connected); 
     socket.emit("join", { clerkId: user.id, groupId });
-  
+
     socket.on("receiveMessage", (message: Message) => {
       console.log("Received message:", message);
       setMessages((prev) => [...prev, message]);
     });
-  
-    socket.on('memberStatusUpdate', (updatedMembers: Member[]) => {
+
+    socket.on("memberStatusUpdate", (updatedMembers: Member[]) => {
       console.log("Updated online members:", updatedMembers);
       if (Array.isArray(updatedMembers)) {
-        setGroup((prevGroup) => 
+        setGroup((prevGroup) =>
           prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
         );
       } else {
         console.error("Received invalid members data:", updatedMembers);
       }
     });
-  
+
     socket.on("error", (err) => {
       console.error("Socket error:", err);
       toast({
@@ -288,9 +331,9 @@ export default function GroupPage() {
         variant: "destructive",
       });
     });
-  
+
     initialized.current = true;
-  
+
     return () => {
       socket.off("receiveMessage");
       socket.off("memberStatusUpdate");
@@ -323,9 +366,9 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
-  
-    socket.on('newMessageNotification', ({ message, for: targetClerkId }) => {
-      console.log(`Received notification for ${targetClerkId}:`, message); 
+
+    socket.on("newMessageNotification", ({ message, for: targetClerkId }) => {
+      console.log(`Received notification for ${targetClerkId}:`, message);
       if (targetClerkId === user.id) {
         toast({
           title: `New Message in ${group?.name}`,
@@ -334,7 +377,7 @@ export default function GroupPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setActiveTab('chat')}
+              onClick={() => setActiveTab("chat")}
             >
               View
             </Button>
@@ -342,9 +385,9 @@ export default function GroupPage() {
         });
       }
     });
-  
+
     return () => {
-      socket.off('newMessageNotification');
+      socket.off("newMessageNotification");
     };
   }, [user, groupId, group?.name, isLoaded, toast]);
 
@@ -393,13 +436,31 @@ export default function GroupPage() {
   }
 
   if (!group) {
-    return null; 
+    return null;
   }
 
   const LazyMap = dynamic(() => import("@/components/Map/index"), {
     ssr: false,
     loading: () => <p>Loading...</p>,
   });
+
+  const checkingMessage = (e: any) => {
+    if (e.target.value === newMessage + "@") {
+      setTagging(true);
+      setNewMessage(e.target.value);
+      setSpace(false);
+    } else {
+      setTagging(false);
+      setNewMessage(e.target.value);
+    }
+  };
+
+  const clickOnMentionName = (name: any) => {
+    setNewMessage((prev) => {
+      return prev + name + " ";
+    });
+    setSpace(true);
+  };
 
   return (
     <div className="flex max-h-screen flex-col">
@@ -526,7 +587,7 @@ export default function GroupPage() {
               </TabsList>
             </div>
           </div>
-          <BackgroundBeams className="pointer-events-none"/>
+          <BackgroundBeams className="pointer-events-none" />
           <div className="container py-6 px-4">
           <TabsContent value="map" className="mt-0">
             {location ? (
@@ -601,6 +662,25 @@ export default function GroupPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
+                <div className="listOMember">
+                  {tagging && !space ? (
+                    group.members.map((member) => {
+                      return (
+                        <div
+                          className="tagging p-2"
+                          onClick={() => {
+                            clickOnMentionName(member.name);
+                          }}
+                        >
+                          {member.name}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <></>
+                  )}
+                </div>
+
                 <div className="border-t pt-4 fix-bottom">
                   <form
                     className="flex gap-2"
@@ -612,7 +692,9 @@ export default function GroupPage() {
                     <Input
                       placeholder="Type your message..."
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={(e) => {
+                        checkingMessage(e);
+                      }}
                     />
                     <Button type="submit">
                       <Send className="h-4 w-4" />

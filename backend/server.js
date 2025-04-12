@@ -127,7 +127,10 @@ app.get('/messages/group/:groupId', async (req, res) => {
 
 // Socket.IO
 io.on('connection', (socket) => {
+<<<<<<< HEAD
     console.log('New client connected:', socket.id);
+=======
+>>>>>>> d8f35cbfdb5f39f8865ef5b3a69814b8ff4689f6
     socket.on('join', async ({ clerkId, groupId }) => {
         users[socket.id] = clerkId;
         socket.join(groupId);
@@ -186,6 +189,18 @@ io.on('connection', (socket) => {
             }
           });
         } catch (err) {
+<<<<<<< HEAD
+            console.error('Send message error:', err);
+            socket.emit('error', { message: 'Failed to send message', error: err.message });
+        }
+    });
+
+    socket.on('send-location', async (data) => {
+        io.emit('recieve-location', { id: socket.id, ...data });
+    })
+
+=======
+>>>>>>> d8f35cbfdb5f39f8865ef5b3a69814b8ff4689f6
           console.error('Send message error:', err);
           socket.emit('error', { message: 'Failed to send message', error: err.message });
         }
@@ -228,11 +243,11 @@ io.on('connection', (socket) => {
         }
       }
     });
-  } catch (err) {
-    console.error('Error updating location:', err);
-  }
-});
-  
+
+    socket.on('send-location', async (data) => {
+        io.emit('recieve-location', { id: socket.id, ...data });
+    })
+
     socket.on('disconnect', async () => {
       const clerkId = users[socket.id];
       if (!clerkId) return;
