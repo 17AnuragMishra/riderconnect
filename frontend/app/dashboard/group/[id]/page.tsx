@@ -115,29 +115,7 @@ export default function GroupPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  // yaha se user ki current location ko fetch kr rha h
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        setLocation({ latitude, longitude });
-      });
-    }
-}, []);
-
-// just for testing ki location update hote hi toast aa rha h ki ni
-useEffect(() => {
-    if (location) {  // Ensure location is not null
-        toast({
-            title: 'Location Retrieved',
-            description: `Latitude: ${location.latitude}, Longitude: ${location.longitude}`,
-            variant: 'default',
-        });
-    }
-}, [location]); // location change hone par chalega
-
-
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://riderconnect.vercel.app:5000";
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -204,7 +182,6 @@ useEffect(() => {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [user, groupId, shareLocation, isLoaded]);
 
-  // Socket.io for locations and distance alerts
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
 
@@ -231,7 +208,7 @@ useEffect(() => {
         const alertKey = `${clerkId}-${otherClerkId}`;
         const lastToast = toastCooldown.get(alertKey) || 0;
         const now = Date.now();
-        if (now - lastToast > 60000) { // 1 minute cooldown
+        if (now - lastToast > 60000) { 
           const otherName = group?.members.find(m => m.clerkId === otherClerkId)?.name || otherClerkId;
           toast({
             title: 'Distance Alert',
@@ -284,7 +261,7 @@ useEffect(() => {
     fetchMessages();
   
     socket.connect();
-    console.log('Socket connected:', socket.connected); // Debug
+    console.log('Socket connected:', socket.connected); 
     socket.emit("join", { clerkId: user.id, groupId });
   
     socket.on("receiveMessage", (message: Message) => {
@@ -556,7 +533,7 @@ useEffect(() => {
               <MapComponent
                 location={location}
                 groupLocations={Array.from(groupLocations.entries())}
-                members={group?.members} // Changed from group to members
+                members={group?.members} 
               />
             ) : (
               <p>Loading map...</p>
