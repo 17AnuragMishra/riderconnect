@@ -66,7 +66,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, isLoaded]);
 
-  const createGroup = async (name: string, source: string, destination: string): Promise<Group> => {
+  const createGroup = async (name: string, source: string, destination: string, startTime: string, reachTime: string): Promise<Group> => {
     if (!user) throw new Error("User not authenticated");
     try {
       const res = await axios.post(`${API_BASE_URL}/groups/create`, {
@@ -76,6 +76,8 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
         clerkId: user.id,
         clerkName: user.firstName || "User",
         clerkAvatar: user.imageUrl || "",
+        startTime: startTime,
+        reachTime: reachTime,
       });
       const newGroup = res.data;
       console.log("Newly created group:", newGroup);

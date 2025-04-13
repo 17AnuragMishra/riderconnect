@@ -69,6 +69,8 @@ interface Group {
   source: string;
   destination: string;
   members: Member[];
+  startTime: string;
+  reachTime: string;
   createdBy: string;
   distanceThreshold?: number;
 }
@@ -594,7 +596,9 @@ export default function GroupPage() {
               <MapComponent
                 location={location}
                 groupLocations={Array.from(groupLocations.entries())}
-                members={group?.members} 
+                members={group?.members}
+                source = {group?.source}
+                destination = {group?.destination}
               />
             ) : (
               <p>Loading map...</p>
