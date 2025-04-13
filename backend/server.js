@@ -21,24 +21,24 @@ app.use(cors({
 }));
 
 // And for Socket.io:
-const io = new Server(server, { 
+const io = new Server(server, {
   cors: {
     origin: ["https://your-vercel-app.vercel.app", "http://localhost:3000"],
     methods: ["GET", "POST", "DELETE"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
-  }, 
+  },
 });
 app.use(express.json());
 
 const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('MongoDB connected');
-    } catch (err) {
-        console.error('MongoDB connection error:', err);
-        process.exit(1);
-    }
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  }
 };
 connectDB();
 
@@ -46,83 +46,85 @@ const users = {};
 const groupSockets = {};
 const viewingState = {};
 app.post('/groups/create', async (req, res) => {
-    const { name, source, destination, clerkId, clerkName, clerkAvatar } = req.body;
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    try {
-        const group = new Group({
-            name,
-            source,
-            destination,
-            code,
-            createdBy: clerkId,
-            members: [{ clerkId, name: clerkName, avatar: clerkAvatar }]
-        });
-        await group.save();
-        console.log("Created group in DB:", group); // Debug log
-        res.json(group);
-    } catch (err) {
-        console.error('Create group error:', err);
-        res.status(500).json({ error: err.message });
-    }
+  const { name, source, destination, clerkId, clerkName, clerkAvatar, startTime, reachTime } = req.body;
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  try {
+    const group = new Group({
+      name,
+      source,
+      destination,
+      code,
+      startTime,
+      reachTime,
+      createdBy: clerkId,
+      members: [{ clerkId, name: clerkName, avatar: clerkAvatar }]
+    });
+    await group.save();
+    console.log("Created group in DB:", group); // Debug log
+    res.json(group);
+  } catch (err) {
+    console.error('Create group error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/groups/join', async (req, res) => {
-    const { code, clerkId, clerkName, clerkAvatar } = req.body;
-    try {
-        const group = await Group.findOne({ code });
-        if (!group) return res.status(404).json({ error: 'Group not found' });
-        if (group.members.some((m) => m.clerkId === clerkId)) {
-            return res.status(400).json({ error: 'Already in group' });
-        }
-        group.members.push({ clerkId, name: clerkName, avatar: clerkAvatar });
-        await group.save();
-        res.json({ id: group._id, name: group.name, code, source: group.source, destination: group.destination, members: group.members });
-    } catch (err) {
-        console.error('Join group error:', err);
-        res.status(500).json({ error: err.message });
+  const { code, clerkId, clerkName, clerkAvatar } = req.body;
+  try {
+    const group = await Group.findOne({ code });
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (group.members.some((m) => m.clerkId === clerkId)) {
+      return res.status(400).json({ error: 'Already in group' });
     }
+    group.members.push({ clerkId, name: clerkName, avatar: clerkAvatar });
+    await group.save();
+    res.json({ id: group._id, name: group.name, code, source: group.source, destination: group.destination, members: group.members });
+  } catch (err) {
+    console.error('Join group error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/groups', async (req, res) => {
-    const { clerkId } = req.query;
-    try {
-        const groups = await Group.find({ "members.clerkId": clerkId });
-        console.log("Groups for clerkId", clerkId, ":", groups);
-        res.json(groups);
-    } catch (err) {
-        console.error('Get groups error:', err);
-        res.status(500).json({ error: err.message });
-    }
+  const { clerkId } = req.query;
+  try {
+    const groups = await Group.find({ "members.clerkId": clerkId });
+    console.log("Groups for clerkId", clerkId, ":", groups);
+    res.json(groups);
+  } catch (err) {
+    console.error('Get groups error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete('/groups/:id', async (req, res) => {
-    const { id } = req.params;
-    const { clerkId } = req.query;
-    try {
-      const group = await Group.findOne({ _id: id });
-      if (!group) return res.status(404).json({ error: 'Group not found' });
-      if (!group.members.some(m => m.clerkId === clerkId)) {
-        return res.status(403).json({ error: 'Not authorized to delete this group' });
-      }
-      await Group.deleteOne({ _id: id });
-      await Message.deleteMany({ groupId: id });
-      await UserLocation.deleteMany({ groupId: id });
-      res.json({ success: true });
-    } catch (err) {
-      console.error('Delete group error:', err);
-      res.status(500).json({ error: err.message });
+  const { id } = req.params;
+  const { clerkId } = req.query;
+  try {
+    const group = await Group.findOne({ _id: id });
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (!group.members.some(m => m.clerkId === clerkId)) {
+      return res.status(403).json({ error: 'Not authorized to delete this group' });
     }
-  });
+    await Group.deleteOne({ _id: id });
+    await Message.deleteMany({ groupId: id });
+    await UserLocation.deleteMany({ groupId: id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete group error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get('/messages/group/:groupId', async (req, res) => {
-    console.log('Fetching messages for groupId:', req.params.groupId);
-    try {
-        const messages = await Message.find({ groupId: req.params.groupId }).sort({ timestamp: 1 });
-        res.json({ data: messages });
-    } catch (err) {
-        console.error('Fetch messages error:', err);
-        res.status(500).json({ error: err.message });
-    }
+  console.log('Fetching messages for groupId:', req.params.groupId);
+  try {
+    const messages = await Message.find({ groupId: req.params.groupId }).sort({ timestamp: 1 });
+    res.json({ data: messages });
+  } catch (err) {
+    console.error('Fetch messages error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Socket.IO
@@ -202,39 +204,39 @@ io.on('connection', (socket) => {
     
     const distanceAlertCooldown = new Map();
 
-    socket.on('updateLocation', async ({ groupId, clerkId, lat, lng }) => {
-  try {
-    const location = await UserLocation.findOneAndUpdate(
-      { groupId, clerkId },
-      { lat, lng, lastUpdated: new Date() },
-      { upsert: true, new: true }
-    );
-    io.to(groupId).emit('locationUpdate', location);
+  socket.on('updateLocation', async ({ groupId, clerkId, lat, lng }) => {
+    try {
+      const location = await UserLocation.findOneAndUpdate(
+        { groupId, clerkId },
+        { lat, lng, lastUpdated: new Date() },
+        { upsert: true, new: true }
+      );
+      io.to(groupId).emit('locationUpdate', location);
 
-    const groupLocations = await UserLocation.find({ groupId });
-    groupLocations.forEach((otherLoc) => {
-      if (otherLoc.clerkId !== clerkId && otherLoc.lat && otherLoc.lng) {
-        const distance = getDistance(
-          { latitude: lat, longitude: lng },
-          { latitude: otherLoc.lat, longitude: otherLoc.lng }
-        );
-        const alertKey = `${clerkId}-${otherLoc.clerkId}`;
-        const lastAlert = distanceAlertCooldown.get(alertKey) || 0;
-        const now = Date.now();
-        if (distance > 1000 && (now - lastAlert) > 60000) { 
-          io.to(groupId).emit('distanceAlert', {
-            clerkId,
-            otherClerkId: otherLoc.clerkId,
-            distance,
-          });
-          distanceAlertCooldown.set(alertKey, now);
+      const groupLocations = await UserLocation.find({ groupId });
+      groupLocations.forEach((otherLoc) => {
+        if (otherLoc.clerkId !== clerkId && otherLoc.lat && otherLoc.lng) {
+          const distance = getDistance(
+            { latitude: lat, longitude: lng },
+            { latitude: otherLoc.lat, longitude: otherLoc.lng }
+          );
+          const alertKey = `${clerkId}-${otherLoc.clerkId}`;
+          const lastAlert = distanceAlertCooldown.get(alertKey) || 0;
+          const now = Date.now();
+          if (distance > 1000 && (now - lastAlert) > 60000) {
+            io.to(groupId).emit('distanceAlert', {
+              clerkId,
+              otherClerkId: otherLoc.clerkId,
+              distance,
+            });
+            distanceAlertCooldown.set(alertKey, now);
+          }
         }
-      }
-    });
+      });
 
-    socket.on('send-location', async (data) => {
+      socket.on('send-location', async (data) => {
         io.emit('recieve-location', { id: socket.id, ...data });
-    })
+      })
 
     socket.on('disconnect', async () => {
       const clerkId = users[socket.id];
