@@ -1,5 +1,145 @@
 "use client";
-import Link from "next/link"
+
+import React, { Suspense } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useIsMobile } from "@/components/ui/use-mobile";
+import MobileFeatureCards from "@/components/landing/mobile/MobileFeatureCards";
+import MobileHowItWorks from "@/components/landing/mobile/MobileHowItWorks";
+import DesktopFeatureCards from "@/components/landing/desktop/DesktopFeatureCards";
+import DesktopHowItWorks from "@/components/landing/desktop/DesktopHowItWorks";
+
+// Simple loading spinner component for Suspense fallback
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center py-16 w-full">
+    <div className="h-10 w-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
+  </div>
+);
+
+function LandingPage() {
+  return (
+    <main className="flex min-h-screen flex-col items-center">
+      <HeroSection />
+      <FeaturesSection />
+      <HowItWorksSection />
+      <CTASection />
+    </main>
+  );
+}
+
+// Client component wrapper to handle mobile detection
+function FeaturesSection() {
+  const isMobile = useIsMobile();
+  
+  return (
+    <section id="features" className="w-full py-12 md:py-16 px-4 md:px-8 bg-card">
+      <div className="container mx-auto">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
+          Key Features
+        </h2>
+        <p className="text-center text-muted-foreground mb-8 md:mb-12 max-w-2xl mx-auto">
+          Everything you need to stay connected with your group on the go
+        </p>
+        
+        <div className="w-full max-w-7xl mx-auto">
+          <Suspense fallback={<LoadingSpinner />}>
+            {isMobile ? <MobileFeatureCards /> : <DesktopFeatureCards />}
+          </Suspense>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorksSection() {
+  "use client";
+  const isMobile = useIsMobile();
+  
+  return (
+    <section id="how-it-works" className="w-full py-16 px-4 md:px-8">
+      <div className="container mx-auto">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
+          How It Works
+        </h2>
+        <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+          Get started with RiderConnect in just a few simple steps
+        </p>
+        <div className="w-full max-w-6xl mx-auto">
+          <Suspense fallback={<LoadingSpinner />}>
+            {isMobile ? <MobileHowItWorks /> : <DesktopHowItWorks />}
+          </Suspense>
+        </div>
+        
+      </div>
+    </section>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section className="w-full pt-24 pb-16 px-4 md:px-8 bg-gradient-to-r from-primary/10 to-accent/10 bg-grid-pattern">
+      <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="max-w-2xl">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4">
+            Stay Connected with Your Group
+          </h1>
+          <p className="text-xl text-muted-foreground mb-8">
+            Track, chat, and coordinate with your friends and family in real-time.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link 
+              href="/signup" 
+              className="button-gradient text-primary-foreground min-touch-target font-medium rounded-md py-3 px-6 text-center shadow-md hover:shadow-lg transition-all"
+            >
+              Get Started
+            </Link>
+            <Link 
+              href="#features" 
+              className="bg-card min-touch-target text-card-foreground font-medium rounded-md py-3 px-6 text-center border border-input hover:bg-primary/5 transition-all"
+            >
+              Learn More
+            </Link>
+          </div>
+        </div>
+        <div className="animate-float">
+          <div className="relative w-[300px] h-[400px] md:w-[400px] md:h-[500px] shadow-glow rounded-2xl overflow-hidden">
+            <Image
+              src="/images/hero-app-preview.png"
+              alt="RiderConnect App Preview"
+              fill
+              sizes="(max-width: 768px) 300px, 400px"
+              priority
+              className="object-cover"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CTASection() {
+  return (
+    <section className="w-full py-16 px-4 md:px-8 bg-primary text-primary-foreground">
+      <div className="container mx-auto text-center">
+        <h2 className="text-3xl md:text-4xl font-bold mb-6">
+          Ready to Connect with Your Group?
+        </h2>
+        <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
+          Join thousands of users already simplifying their group coordination
+        </p>
+        <Link 
+          href="/signup" 
+          className="bg-primary-foreground min-touch-target text-primary font-medium rounded-md py-3 px-8 text-center shadow-md hover:shadow-lg transition-all inline-block"
+        >
+          Sign Up Now
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+
 import { Button } from "@/components/ui/button"
 import { MapPin, Users, MessageSquare, Bell, UserPlus, Send } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -61,7 +201,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, del
   </motion.div>
 );
 
-export default function Home() {
+export default function App() {
   const userId = useUser().user?.id;
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
@@ -581,7 +721,7 @@ export default function Home() {
                     <AccordionTrigger className="text-left text-lg font-semibold">
                       Is my location data secure?
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base">
+                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
                       Yes, your location is only shared with members of your group and is encrypted during transmission. 
                       We use industry-standard encryption protocols to ensure your data remains private and secure. 
                       Additionally, you can pause location sharing at any time.
@@ -592,7 +732,7 @@ export default function Home() {
                     <AccordionTrigger className="text-left text-lg font-semibold">
                       How accurate is the location tracking?
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base">
+                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
                       Our system uses GPS data from your device, which is typically accurate to within 5-10 meters in 
                       optimal conditions. Accuracy may vary based on your device, environment (urban areas, indoors, etc.), 
                       and satellite availability. We also implement smoothing algorithms to improve location reliability.
@@ -603,7 +743,7 @@ export default function Home() {
                     <AccordionTrigger className="text-left text-lg font-semibold">
                       Does it work internationally?
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base">
+                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
                       Yes, our service works worldwide as long as you have an internet connection. There are no geographical 
                       restrictions, making it perfect for international travel, events, and adventures. Data roaming charges 
                       from your carrier may apply when traveling internationally.
@@ -614,7 +754,7 @@ export default function Home() {
                     <AccordionTrigger className="text-left text-lg font-semibold">
                       How much battery does it use?
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base">
+                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
                       We've optimized the app to use minimal battery while still providing real-time updates. You can 
                       adjust the frequency of location updates to balance between accuracy and battery life. In typical usage, 
                       our app consumes similar battery to other navigation apps. We also provide a battery-saving mode for 
@@ -626,7 +766,7 @@ export default function Home() {
                     <AccordionTrigger className="text-left text-lg font-semibold">
                       Can I use the app without data connection?
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base">
+                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
                       While an internet connection is required for real-time location sharing, our app can store your 
                       group's last known locations when offline. Once you reconnect, your location will update automatically, 
                       and you'll receive any missed updates from your group members.
@@ -637,7 +777,7 @@ export default function Home() {
                     <AccordionTrigger className="text-left text-lg font-semibold">
                       Is there a limit to group size?
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base">
+                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
                       Our free plan supports groups of up to 10 members. For larger groups or events, we offer premium plans 
                       that support up to 100 members per group with additional features like custom branding and enhanced 
                       analytics. Contact us for special event requirements beyond these limits.
