@@ -46,7 +46,7 @@ const users = {};
 const groupSockets = {};
 const viewingState = {};
 app.post('/groups/create', async (req, res) => {
-  const { name, source, destination, clerkId, clerkName, clerkAvatar } = req.body;
+  const { name, source, destination, clerkId, clerkName, clerkAvatar, startTime, reachTime } = req.body;
   const code = Math.random().toString(36).substring(2, 8).toUpperCase();
   try {
     const group = new Group({
@@ -54,6 +54,8 @@ app.post('/groups/create', async (req, res) => {
       source,
       destination,
       code,
+      startTime,
+      reachTime,
       createdBy: clerkId,
       members: [{ clerkId, name: clerkName, avatar: clerkAvatar }]
     });

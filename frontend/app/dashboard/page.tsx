@@ -74,6 +74,8 @@ interface Group {
   name: string;
   code: string;
   source: string;
+  startTime: string;
+  reachTime: string;
   destination: string;
   members: Member[];
   createdBy: string;
@@ -91,12 +93,10 @@ export default function Dashboard() {
   const [newGroupName, setNewGroupName] = useState("");
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
-  interface Suggestion {
-    display_name: string;
-  }
-  
-  const [suggestedSource, setSuggestedSource] = useState<Suggestion[]>([]);
-  const [suggestedDestination, setSuggestedDestination] = useState<Suggestion[]>([]);
+  const [startTime, setStartTime] = useState("");
+  const [reachTime, setReactTime] = useState("");
+  const [suggestedSource, setSuggestedSource] = useState([]);
+  const [suggestedDestination, setSuggestedDestination] = useState([]);
   const [inviteCode, setInviteCode] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -120,7 +120,7 @@ export default function Dashboard() {
 
     setIsCreating(true);
     try {
-      const group = await createGroup(newGroupName, source, destination);
+      const group = await createGroup(newGroupName, source, destination, startTime, reachTime);
       toast({
         title: "Success",
         description: `Group "${group.name}" created with code ${group.code}!`,
@@ -128,6 +128,8 @@ export default function Dashboard() {
       setNewGroupName("");
       setSource("");
       setDestination("");
+      setReactTime("");
+      setStartTime("");
       setCreateDialogOpen(false);
     } catch (error) {
       toast({
@@ -443,6 +445,24 @@ export default function Dashboard() {
                       ))}
                     </SuggestionList>
                   )}
+                  <Label htmlFor="startTime">Start Time</Label>
+                  <Input
+                    id="startTime"
+                    placeholder="e.g., 10:54 (24h)"
+                    value={startTime}
+                    onChange={(e) => {
+                      setStartTime(e.target.value);
+                    }}
+                  />
+                  <Label htmlFor="reactTime">Reach Time</Label>
+                  <Input
+                    id="reactTime"
+                    placeholder="e.g., 10:50"
+                    value={reachTime}
+                    onChange={(e) => {
+                      setReactTime(e.target.value);
+                    }}
+                  />
                 </div>
               </div>
               <DialogFooter>
