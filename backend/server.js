@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 app.use(cors({
-  origin: ["https://your-vercel-app.vercel.app", "http://localhost:3000"],
+  origin: ["https://riderconnect.vercel.app", "http://localhost:3000"],
   methods: ["GET", "POST", "DELETE"],
   allowedHeaders: ["Content-Type"],
   credentials: true
@@ -23,7 +23,7 @@ app.use(cors({
 // And for Socket.io:
 const io = new Server(server, {
   cors: {
-    origin: ["https://your-vercel-app.vercel.app", "http://localhost:3000"],
+    origin: ["https://riderconnect.vercel.app", "http://localhost:3000"],
     methods: ["GET", "POST", "DELETE"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
