@@ -121,7 +121,7 @@ export default function GroupPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://riderconnect.vercel.app:5000";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
