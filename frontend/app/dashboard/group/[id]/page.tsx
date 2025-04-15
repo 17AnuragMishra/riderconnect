@@ -69,6 +69,8 @@ interface Group {
   source: string;
   destination: string;
   members: Member[];
+  startTime: string;
+  reachTime: string;
   createdBy: string;
   distanceThreshold?: number;
 }
@@ -119,7 +121,7 @@ export default function GroupPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://riderconnect.vercel.app:5000";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -312,32 +314,38 @@ export default function GroupPage() {
       setMessages((prev) => [...prev, message]);
     });
 
-    socket.on("memberStatusUpdate", (updatedMembers: Member[]) => {
-      console.log("Updated online members:", updatedMembers);
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+      socket.emit('join', { clerkId: user.id, groupId });
+      console.log('Emitted join:', { clerkId: user.id, groupId });
+    });
+    socket.on('connect_error', (err) => console.error('Socket connection error:', err));
+  
+    socket.on('memberStatusUpdate', (updatedMembers: Member[]) => {
+      console.log('Received memberStatusUpdate:', updatedMembers);
       if (Array.isArray(updatedMembers)) {
-        setGroup((prevGroup) =>
-          prevGroup ? { ...prevGroup, members: updatedMembers } : prevGroup
-        );
+        setGroup((prevGroup) => {
+          if (!prevGroup) return prevGroup;
+          console.log('Updating group members:', updatedMembers);
+          return { ...prevGroup, members: updatedMembers };
+        });
       } else {
-        console.error("Received invalid members data:", updatedMembers);
+        console.error('Invalid members data:', updatedMembers);
       }
     });
-
-    socket.on("error", (err) => {
-      console.error("Socket error:", err);
-      toast({
-        title: "Error",
-        description: err.message,
-        variant: "destructive",
-      });
+  
+    socket.on('error', (err) => {
+      console.error('Socket error:', err);
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     });
-
+  
     initialized.current = true;
-
+  
     return () => {
-      socket.off("receiveMessage");
-      socket.off("memberStatusUpdate");
-      socket.off("error");
+      socket.off('connect');
+      socket.off('connect_error');
+      socket.off('memberStatusUpdate');
+      socket.off('error');
       socket.disconnect();
       initialized.current = false;
     };
@@ -594,7 +602,9 @@ export default function GroupPage() {
               <MapComponent
                 location={location}
                 groupLocations={Array.from(groupLocations.entries())}
-                members={group?.members} 
+                members={group?.members}
+                source = {group?.source}
+                destination = {group?.destination}
               />
             ) : (
               <p>Loading map...</p>
