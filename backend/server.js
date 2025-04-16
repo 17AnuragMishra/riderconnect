@@ -104,7 +104,7 @@ app.delete('/groups/:id', async (req, res) => {
     const group = await Group.findOne({ _id: id });
     if (!group) return res.status(404).json({ error: 'Group not found' });
     if (!group.members.some(m => m.clerkId === clerkId)) {
-      return res.status(403).json({ error: 'Not authorized to delete this group' })
+      return res.status(403).json({ error: 'Not authorized to delete this group' });
     }
     await Group.deleteOne({ _id: id });
     await Message.deleteMany({ groupId: id });
@@ -127,24 +127,41 @@ app.get('/messages/group/:groupId', async (req, res) => {
   }
 });
 
+const onlineUsers = new Map();
 io.on('connection', (socket) => {
   socket.on('join', async ({ clerkId, groupId }) => {
     users[socket.id] = clerkId;
     socket.join(groupId);
     if (!groupSockets[groupId]) groupSockets[groupId] = [];
     groupSockets[groupId].push(socket.id);
-    console.log(`User ${clerkId} joined group ${groupId}`);
+    if (!onlineUsers.has(clerkId)) {
+      onlineUsers.set(clerkId, { socketIds: new Set(), groupIds: new Set() });
+    }
+    onlineUsers.get(clerkId).socketIds.add(socket.id);
+    onlineUsers.get(clerkId).groupIds.add(groupId);
+    console.log(`Online users:`, Array.from(onlineUsers.entries()));
     try {
-      const group = await Group.findOneAndUpdate(
-        { _id: groupId, "members.clerkId": clerkId },
-        { $set: { "members.$.isOnline": true } },
-        { new: true }
-      );
+      // const group = await Group.findOneAndUpdate(
+      //   { _id: groupId, 'members.clerkId': clerkId },
+      //   { $set: { 'members.$.isOnline': true } },
+      //   { new: true }
+      // );
+      // if (group && Array.isArray(group.members)) {
+      //   io.to(groupId).emit('memberStatusUpdate', group.members);
+      //   io.emit('groupUpdate', group);
+      // } else {
+      //   socket.emit('error', { message: 'Invalid group data' });
+      // }
+      const group = await Group.findById(groupId);
       if (group && Array.isArray(group.members)) {
-        io.to(groupId).emit('memberStatusUpdate', group.members);
-        io.emit('groupUpdate', group);
+        const updatedMembers = group.members.map((m) => ({
+          ...m._doc,
+          isOnline: onlineUsers.has(m.clerkId),
+        }));
+        console.log(`Emitting memberStatusUpdate to ${groupId}:`, updatedMembers);
+        io.to(groupId).emit('memberStatusUpdate', updatedMembers);
       } else {
-        console.error(`Invalid group or members for ${groupId}:`, group);
+        socket.emit('error', { message: 'Invalid group data' });
       }
       const location = await UserLocation.findOneAndUpdate(
         { groupId, clerkId },
@@ -159,125 +176,113 @@ io.on('connection', (socket) => {
       console.error('Error in join:', err);
       socket.emit('error', { message: 'Failed to join group', error: err.message });
     }
-    await Group.deleteOne({ _id: id });
-    await Message.deleteMany({ groupId: id });
-    await UserLocation.deleteMany({ groupId: id });
-    res.json({ success: true });
   });
-});
-app.get('/messages/group/:groupId', async (req, res) => {
-  console.log('Fetching messages for groupId:', req.params.groupId);
-  try {
-    const messages = await Message.find({ groupId: req.params.groupId }).sort({ timestamp: 1 });
-    res.json({ data: messages });
-  } catch (err) {
-    console.error('Fetch messages error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-socket.on('sendMessage', async ({ groupId, clerkId, clerkName, content }) => {
-  try {
-    const message = new Message({ groupId, senderId: clerkId, senderName: clerkName, content });
-    await message.save();
-    io.to(groupId).emit('receiveMessage', message);
+  socket.on('send-location', async (data) => {
+    io.emit('recieve-location', { id: socket.id, ...data });
+  })
 
-    const group = await Group.findById(groupId);
-    if (!group) {
-      console.error(`Group ${groupId} not found`);
-      return;
+  socket.on('sendMessage', async ({ groupId, clerkId, clerkName, content }) => {
+    try {
+      const message = new Message({ groupId, senderId: clerkId, senderName: clerkName, content });
+      await message.save();
+      io.to(groupId).emit('receiveMessage', message);
+
+      const group = await Group.findById(groupId);
+      if (!group) {
+        console.error(`Group ${groupId} not found`);
+        return;
+      }
+
+      console.log(`Processing notifications for group ${groupId}, sender: ${clerkId}`);
+      group.members.forEach((member) => {
+        if (member.clerkId === clerkId) return;
+        console.log(`Member ${member.clerkId}: isOnline=${member.isOnline}, viewing=${viewingState[member.clerkId]}`);
+        if (!member.isOnline) {
+          console.log(`Queue offline notification for ${member.clerkId}: New message in ${group.name} - "${content}"`);
+        } else if (viewingState[member.clerkId] !== groupId) {
+          console.log(`Sending notification to ${member.clerkId} (online, not viewing ${groupId})`);
+          io.to(groupId).emit('newMessageNotification', { message, for: member.clerkId });
+        } else {
+          console.log(`No notification for ${member.clerkId} (viewing ${groupId})`);
+        }
+      });
+    } catch (err) {
+      console.error('Send message error:', err);
+      socket.emit('error', { message: 'Failed to send message', error: err.message });
     }
+  });
+  socket.on('viewingGroup', ({ groupId, clerkId }) => {
+    viewingState[clerkId] = groupId;
+  });
 
-    console.log(`Processing notifications for group ${groupId}, sender: ${clerkId}`);
-    group.members.forEach((member) => {
-      if (member.clerkId === clerkId) return;
-      console.log(`Member ${member.clerkId}: isOnline=${member.isOnline}, viewing=${viewingState[member.clerkId]}`);
-      if (!member.isOnline) {
-        console.log(`Queue offline notification for ${member.clerkId}: New message in ${group.name} - "${content}"`);
-      } else if (viewingState[member.clerkId] !== groupId) {
-        console.log(`Sending notification to ${member.clerkId} (online, not viewing ${groupId})`);
-        io.to(groupId).emit('newMessageNotification', { message, for: member.clerkId });
-      } else {
-        console.log(`No notification for ${member.clerkId} (viewing ${groupId})`);
-      }
-    });
-  } catch (err) {
-    console.error('Send message error:', err);
-    socket.emit('error', { message: 'Failed to send message', error: err.message });
-  }
-});
+  const distanceAlertCooldown = new Map();
+  socket.on('updateLocation', async ({ groupId, clerkId, lat, lng }) => {
+    try {
+      const location = await UserLocation.findOneAndUpdate(
+        { groupId, clerkId },
+        { lat, lng, lastUpdated: new Date() },
+        { upsert: true, new: true }
+      );
+      io.to(groupId).emit('locationUpdate', location);
 
-socket.on('send-location', async (data) => {
-  io.emit('recieve-location', { id: socket.id, ...data });
-})
-
-socket.on('viewingGroup', ({ groupId, clerkId }) => {
-  viewingState[clerkId] = groupId;
-  console.log(`User ${clerkId} viewing group: ${groupId || 'none'}`);
-  console.log('Current viewingState:', viewingState);
-});
-
-const distanceAlertCooldown = new Map();
-socket.on('updateLocation', async ({ groupId, clerkId, lat, lng }) => {
-  try {
-    const location = await UserLocation.findOneAndUpdate(
-      { groupId, clerkId },
-      { lat, lng, lastUpdated: new Date() },
-      { upsert: true, new: true }
-    );
-    io.to(groupId).emit('locationUpdate', location);
-
-    const groupLocations = await UserLocation.find({ groupId });
-    groupLocations.forEach((otherLoc) => {
-      if (otherLoc.clerkId !== clerkId && otherLoc.lat && otherLoc.lng) {
-        const distance = getDistance(
-          { latitude: lat, longitude: lng },
-          { latitude: otherLoc.lat, longitude: otherLoc.lng }
-        );
-        const alertKey = `${clerkId}-${otherLoc.clerkId}`;
-        const lastAlert = distanceAlertCooldown.get(alertKey) || 0;
-        const now = Date.now();
-        if (distance > 1000 && (now - lastAlert) > 60000) {
-          io.to(groupId).emit('distanceAlert', {
-            clerkId,
-            otherClerkId: otherLoc.clerkId,
-            distance,
-          });
-          distanceAlertCooldown.set(alertKey, now);
-        }
-      }
-    });
-
-    socket.on('send-location', async (data) => {
-      io.emit('recieve-location', { id: socket.id, ...data });
-    })
-    socket.on('disconnect', async () => {
-      const clerkId = users[socket.id];
-      if (!clerkId) return;
-      console.log('User disconnected:', socket.id, 'clerkId:', clerkId);
-      delete users[socket.id];
-      for (const groupId in groupSockets) {
-        groupSockets[groupId] = groupSockets[groupId].filter(id => id !== socket.id);
-        console.log(`Socket ${socket.id} left room ${groupId}, remaining sockets:`, groupSockets[groupId]);
-        if (groupSockets[groupId].length === 0) delete groupSockets[groupId];
-        try {
-          const group = await Group.findOneAndUpdate(
-            { _id: groupId, 'members.clerkId': clerkId },
-            { $set: { 'members.$.isOnline': false } },
-            { new: true }
+      const groupLocations = await UserLocation.find({ groupId });
+      groupLocations.forEach((otherLoc) => {
+        if (otherLoc.clerkId !== clerkId && otherLoc.lat && otherLoc.lng) {
+          const distance = getDistance(
+            { latitude: lat, longitude: lng },
+            { latitude: otherLoc.lat, longitude: otherLoc.lng }
           );
-          if (group && Array.isArray(group.members)) {
-            console.log(`Emitting memberStatusUpdate to ${groupId}:`, group.members);
-            io.to(groupId).emit('memberStatusUpdate', group.members);
-            io.emit('groupUpdate', group);
+          const alertKey = `${clerkId}-${otherLoc.clerkId}`;
+          const lastAlert = distanceAlertCooldown.get(alertKey) || 0;
+          const now = Date.now();
+          if (distance > 1000 && (now - lastAlert) > 60000) {
+            io.to(groupId).emit('distanceAlert', {
+              clerkId,
+              otherClerkId: otherLoc.clerkId,
+              distance,
+            });
+            distanceAlertCooldown.set(alertKey, now);
           }
-        } catch (err) {
-          console.error('Disconnect error:', err);
         }
+      });
+      socket.on('send-location', async (data) => {
+        io.emit('recieve-location', { id: socket.id, ...data });
+      })
+    } catch (error) {
+      console.log(error);
+    }
+  });
+  socket.on('disconnect', async () => {
+    const clerkId = users[socket.id];
+    if (!clerkId) return;
+    console.log('User disconnected:', socket.id, 'clerkId:', clerkId);
+    delete users[socket.id];
+    const userData = onlineUsers.get(clerkId);
+    if (userData) {
+      userData.socketIds.delete(socket.id);
+      if (userData.socketIds.size === 0) {
+        onlineUsers.delete(clerkId);
       }
-    });
-  } catch (error) {
-    console.log(error);
-  }
+    }
+    console.log(`Online users after disconnect:`, Array.from(onlineUsers.entries()));
+    for (const groupId in groupSockets) {
+      groupSockets[groupId] = groupSockets[groupId].filter(id => id !== socket.id);
+      if (groupSockets[groupId].length === 0) delete groupSockets[groupId];
+      try {
+        const group = await Group.findById(groupId);
+        if (group && Array.isArray(group.members)) {
+          const updatedMembers = group.members.map((m) => ({
+            ...m._doc,
+            isOnline: onlineUsers.has(m.clerkId),
+          }));
+          console.log(`Emitting memberStatusUpdate to ${groupId}:`, updatedMembers);
+          io.to(groupId).emit('memberStatusUpdate', updatedMembers);
+        }
+      } catch (err) {
+        console.error('Disconnect error:', err);
+      }
+    }
+  });
 });
 
 const PORT = process.env.PORT || 5000;
