@@ -135,28 +135,32 @@ export default function MapComponent({
       />
       <MapUpdater center={userPos} locations={groupLocations} />
 
-      {/* 🔵 Source Marker */}
       {srcCoords && (
         <Marker position={srcCoords} icon={blueIcon}>
           <Popup>Source</Popup>
         </Marker>
       )}
 
-      {/* 🔴 Destination Marker */}
       {dstCoords && (
         <Marker position={dstCoords} icon={redIcon}>
           <Popup>Destination</Popup>
         </Marker>
       )}
 
-      {/* 🚗 Route Polyline */}
       {routeCoords.length > 0 && (
         <Polyline positions={routeCoords} pathOptions={{ color: "blue" }} />
       )}
 
-      
+      <Marker
+        position={userPos}
+        icon={createAvatarIcon(
+          members?.find((m) => m.clerkId === user?.id)?.avatar,
+          true
+        )}
+      >
+        <Popup>Your Location</Popup>
+      </Marker>
 
-      {/* 👥 Group Members */}
       {groupLocations.map(([clerkId, { lat, lng, isOnline }]) => (
         <Marker
           key={clerkId}
