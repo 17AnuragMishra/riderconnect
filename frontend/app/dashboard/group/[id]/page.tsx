@@ -44,7 +44,12 @@ import io from "socket.io-client";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 import { getMaxAge } from "next/dist/server/image-optimizer";
 
-const socket = io("http://localhost:5000", { autoConnect: false });
+const socket = io(process.env.NEXT_PUBLIC_API_URL, {
+  autoConnect: false,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+});
 
 interface Message {
   _id: string;
@@ -197,7 +202,6 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
-
     socket.on(
       "groupLocations",
       (
@@ -243,7 +247,6 @@ export default function GroupPage() {
     );
 
     const toastCooldown = new Map();
-
     socket.on("distanceAlert", ({ clerkId, otherClerkId, distance }) => {
       if (clerkId === user.id || otherClerkId === user.id) {
         const alertKey = `${clerkId}-${otherClerkId}`;
@@ -343,6 +346,7 @@ export default function GroupPage() {
   
     return () => {
       socket.off('connect');
+      socket.off('reconnect');
       socket.off('connect_error');
       socket.off('memberStatusUpdate');
       socket.off('error');

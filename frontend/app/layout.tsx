@@ -7,6 +7,7 @@ import Navbar from "@/components/navbar"
 import { Toaster } from "@/components/ui/toaster"
 import { GroupProvider } from "@/contexts/group-context"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({
             <GroupProvider>
               <Navbar />
               {children}
+              <Analytics />
               <Toaster />
             </GroupProvider>
           </ThemeProvider>

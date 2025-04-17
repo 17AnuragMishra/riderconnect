@@ -15,16 +15,15 @@ const app = express();
 const server = http.createServer(app);
 app.use(cors({
   origin: ["https://riderconnect.vercel.app", "http://localhost:3000"],
-  methods: ["GET", "POST", "DELETE"],
+  methods: ["GET", "POST", "DELETE", "PATCH"],
   allowedHeaders: ["Content-Type"],
-  credentials: true
-}));
+  credentials: true,
+})); 
 
-// And for Socket.io:
 const io = new Server(server, {
   cors: {
     origin: ["https://riderconnect.vercel.app", "http://localhost:3000"],
-    methods: ["GET", "POST", "DELETE"],
+    methods: ["GET", "POST", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
   },
@@ -45,6 +44,7 @@ connectDB();
 const users = {};
 const groupSockets = {};
 const viewingState = {};
+const onlineUsers = new Map(); 
 app.post('/groups/create', async (req, res) => {
   const { name, source, destination, clerkId, clerkName, clerkAvatar, startTime, reachTime } = req.body;
   const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -57,10 +57,10 @@ app.post('/groups/create', async (req, res) => {
       startTime,
       reachTime,
       createdBy: clerkId,
-      members: [{ clerkId, name: clerkName, avatar: clerkAvatar }]
+      members: [{ clerkId, name: clerkName, avatar: clerkAvatar }],
     });
     await group.save();
-    console.log("Created group in DB:", group); // Debug log
+    console.log('Created group:', group._id);
     res.json(group);
   } catch (err) {
     console.error('Create group error:', err);
@@ -89,7 +89,6 @@ app.get('/groups', async (req, res) => {
   const { clerkId } = req.query;
   try {
     const groups = await Group.find({ "members.clerkId": clerkId });
-    console.log("Groups for clerkId", clerkId, ":", groups);
     res.json(groups);
   } catch (err) {
     console.error('Get groups error:', err);
@@ -117,7 +116,6 @@ app.delete('/groups/:id', async (req, res) => {
 });
 
 app.get('/messages/group/:groupId', async (req, res) => {
-  console.log('Fetching messages for groupId:', req.params.groupId);
   try {
     const messages = await Message.find({ groupId: req.params.groupId }).sort({ timestamp: 1 });
     res.json({ data: messages });
@@ -127,7 +125,6 @@ app.get('/messages/group/:groupId', async (req, res) => {
   }
 });
 
-const onlineUsers = new Map();
 io.on('connection', (socket) => {
   socket.on('join', async ({ clerkId, groupId }) => {
     users[socket.id] = clerkId;
@@ -141,17 +138,6 @@ io.on('connection', (socket) => {
     onlineUsers.get(clerkId).groupIds.add(groupId);
     console.log(`Online users:`, Array.from(onlineUsers.entries()));
     try {
-      // const group = await Group.findOneAndUpdate(
-      //   { _id: groupId, 'members.clerkId': clerkId },
-      //   { $set: { 'members.$.isOnline': true } },
-      //   { new: true }
-      // );
-      // if (group && Array.isArray(group.members)) {
-      //   io.to(groupId).emit('memberStatusUpdate', group.members);
-      //   io.emit('groupUpdate', group);
-      // } else {
-      //   socket.emit('error', { message: 'Invalid group data' });
-      // }
       const group = await Group.findById(groupId);
       if (group && Array.isArray(group.members)) {
         const updatedMembers = group.members.map((m) => ({
@@ -160,6 +146,7 @@ io.on('connection', (socket) => {
         }));
         console.log(`Emitting memberStatusUpdate to ${groupId}:`, updatedMembers);
         io.to(groupId).emit('memberStatusUpdate', updatedMembers);
+        io.emit('groupUpdate', group);
       } else {
         socket.emit('error', { message: 'Invalid group data' });
       }
@@ -170,16 +157,12 @@ io.on('connection', (socket) => {
       );
       io.to(groupId).emit('locationUpdate', location);
       const groupLocations = await UserLocation.find({ groupId });
-      socket.emit('groupLocations', groupLocations);
-      if (group) io.emit('groupUpdate', group);
+      io.to(groupId).emit('groupLocations', groupLocations); // Changed to all members
+      console.log(`Emitted groupLocations for ${groupId}:`, groupLocations);
     } catch (err) {
-      console.error('Error in join:', err);
       socket.emit('error', { message: 'Failed to join group', error: err.message });
     }
   });
-  socket.on('send-location', async (data) => {
-    io.emit('recieve-location', { id: socket.id, ...data });
-  })
 
   socket.on('sendMessage', async ({ groupId, clerkId, clerkName, content }) => {
     try {
@@ -188,22 +171,12 @@ io.on('connection', (socket) => {
       io.to(groupId).emit('receiveMessage', message);
 
       const group = await Group.findById(groupId);
-      if (!group) {
-        console.error(`Group ${groupId} not found`);
-        return;
-      }
-
-      console.log(`Processing notifications for group ${groupId}, sender: ${clerkId}`);
+      if (!group) return;
       group.members.forEach((member) => {
         if (member.clerkId === clerkId) return;
-        console.log(`Member ${member.clerkId}: isOnline=${member.isOnline}, viewing=${viewingState[member.clerkId]}`);
-        if (!member.isOnline) {
-          console.log(`Queue offline notification for ${member.clerkId}: New message in ${group.name} - "${content}"`);
+        if (!onlineUsers.has(member.clerkId)) {
         } else if (viewingState[member.clerkId] !== groupId) {
-          console.log(`Sending notification to ${member.clerkId} (online, not viewing ${groupId})`);
           io.to(groupId).emit('newMessageNotification', { message, for: member.clerkId });
-        } else {
-          console.log(`No notification for ${member.clerkId} (viewing ${groupId})`);
         }
       });
     } catch (err) {
@@ -224,8 +197,8 @@ io.on('connection', (socket) => {
         { upsert: true, new: true }
       );
       io.to(groupId).emit('locationUpdate', location);
-
       const groupLocations = await UserLocation.find({ groupId });
+      io.to(groupId).emit('groupLocations', groupLocations);
       groupLocations.forEach((otherLoc) => {
         if (otherLoc.clerkId !== clerkId && otherLoc.lat && otherLoc.lng) {
           const distance = getDistance(
@@ -234,22 +207,14 @@ io.on('connection', (socket) => {
           );
           const alertKey = `${clerkId}-${otherLoc.clerkId}`;
           const lastAlert = distanceAlertCooldown.get(alertKey) || 0;
-          const now = Date.now();
-          if (distance > 1000 && (now - lastAlert) > 60000) {
-            io.to(groupId).emit('distanceAlert', {
-              clerkId,
-              otherClerkId: otherLoc.clerkId,
-              distance,
-            });
-            distanceAlertCooldown.set(alertKey, now);
+          if (distance > 1000 && Date.now() - lastAlert > 60000) {
+            io.to(groupId).emit('distanceAlert', { clerkId, otherClerkId: otherLoc.clerkId, distance });
+            distanceAlertCooldown.set(alertKey, Date.now());
           }
         }
       });
-      socket.on('send-location', async (data) => {
-        io.emit('recieve-location', { id: socket.id, ...data });
-      })
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      console.error('Update location error:', err);
     }
   });
   socket.on('disconnect', async () => {
@@ -262,9 +227,14 @@ io.on('connection', (socket) => {
       userData.socketIds.delete(socket.id);
       if (userData.socketIds.size === 0) {
         onlineUsers.delete(clerkId);
+        // Clear isOnline in UserLocation for all groups
+        await UserLocation.updateMany(
+          { clerkId },
+          { isOnline: false, lastUpdated: new Date() }
+        );
+        console.log(`Cleared isOnline for ${clerkId} in UserLocation`);
       }
     }
-    console.log(`Online users after disconnect:`, Array.from(onlineUsers.entries()));
     for (const groupId in groupSockets) {
       groupSockets[groupId] = groupSockets[groupId].filter(id => id !== socket.id);
       if (groupSockets[groupId].length === 0) delete groupSockets[groupId];

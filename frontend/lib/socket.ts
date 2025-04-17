@@ -1,6 +1,3 @@
-// This is a mock implementation of a socket.io client
-// In a real application, you would use the actual socket.io-client library
-
 class MockSocket {
   private callbacks: Record<string, Function[]> = {}
   private connected = false
@@ -78,19 +75,11 @@ class MockSocket {
     }
     return this
   }
-
-  // Mock methods to simulate sending data to server
   sendLocation(location: { lat: number; lng: number }) {
     if (!this.connected) {
       console.warn("Cannot send location: not connected")
       return
     }
-
-    console.log("Sending location:", location)
-    // In a real app, this would send the location to the server
-    // socket.emit('update_location', location);
-
-    // Simulate receiving acknowledgment
     setTimeout(() => {
       this.emit("location_updated", { success: true })
     }, 200)
@@ -101,12 +90,6 @@ class MockSocket {
       console.warn("Cannot send message: not connected")
       return
     }
-
-    console.log("Sending message socket update:", message)
-    // In a real app, this would send the message to the server
-    // socket.emit('send_message', message);
-
-    // Simulate receiving the message back from the server
     setTimeout(() => {
       this.emit("new_message", {
         id: Math.random().toString(36).substring(2, 9),

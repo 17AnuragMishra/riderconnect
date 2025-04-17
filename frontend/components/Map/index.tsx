@@ -154,16 +154,7 @@ export default function MapComponent({
         <Polyline positions={routeCoords} pathOptions={{ color: "blue" }} />
       )}
 
-      {/* 🧍 Your Marker */}
-      <Marker
-        position={userPos}
-        icon={createAvatarIcon(
-          members?.find((m) => m.clerkId === user?.id)?.avatar,
-          true
-        )}
-      >
-        <Popup>Your Location</Popup>
-      </Marker>
+      
 
       {/* 👥 Group Members */}
       {groupLocations.map(([clerkId, { lat, lng, isOnline }]) => (
