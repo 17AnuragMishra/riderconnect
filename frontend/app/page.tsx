@@ -210,7 +210,6 @@ export default function App() {
   const [isCreating, setIsCreating] = useState(false);
   const { createGroup } = useGroups();
   const { toast } = useToast();
-  const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim() || !source.trim() || !destination.trim()) {
