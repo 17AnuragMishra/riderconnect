@@ -84,6 +84,9 @@ interface Group {
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
+
+  const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
+  
   const { groups, createGroup, joinGroup, deleteGroup } = useGroups();
   const { toast } = useToast();
 
@@ -99,6 +102,7 @@ export default function Dashboard() {
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in");
@@ -233,7 +237,7 @@ export default function Dashboard() {
       return;
     }
     try {
-      const url = `https://api.locationiq.com/v1/autocomplete?key=${process.env.LOCATION_IO_API_KEY}&q=${place}`;
+      const url = `https://api.locationiq.com/v1/autocomplete?key=${LOCATION_IO_API_KEY}&q=${place}`;
       const response = await axios.get(url);
       if (sourceType === "source") {
         setSuggestedSource(response.data);
