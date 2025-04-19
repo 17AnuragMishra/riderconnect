@@ -5,8 +5,8 @@ const UserLocationSchema = new mongoose.Schema({
   clerkId: { type: String, required: true },
   lat: { type: Number },
   lng: { type: Number },
-  isOnline: { type: Boolean, default: true },
   lastUpdated: { type: Date, default: Date.now },
 });
 
+UserLocationSchema.index({ groupId: 1, clerkId: 1 });
 export default mongoose.model('UserLocation', UserLocationSchema);
