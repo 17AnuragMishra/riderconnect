@@ -18,6 +18,8 @@ interface Group {
   code: string;
   source: string;
   destination: string;
+  startTime: string;
+  reachTime: string;
   members: Member[];
   createdBy: string;
 }
@@ -35,8 +37,10 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     if (!user || !isLoaded) return;
     try {
       const res = await axios.get(`${API_BASE_URL}/groups?clerkId=${user.id}`);
-      console.log("Fetched groups for clerkId", user.id, ":", res.data);
-      setGroups(res.data);
+      const filteredGroups = res.data.filter((g: Group) =>
+        g.members.some(m => m.clerkId === user.id)
+      );
+      setGroups(filteredGroups);
     } catch (err) {
       console.error("Failed to fetch groups:", err);
     }
@@ -48,9 +52,12 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     console.log("Current clerkId:", user?.id);
     fetchGroups();
 
-    socket.connect(); // Connect to Socket.io when user is loaded
+    socket.connect();
     socket.on('groupUpdate', (updatedGroup: Group) => {
-      console.log('Group updated:', updatedGroup);
+      if (!user || !updatedGroup.members.some(m => m.clerkId === user.id)) {
+        console.log('Ignoring groupUpdate for non-member group:', updatedGroup._id);
+        return;
+      }
       setGroups((prev) => {
         const updatedGroups = prev.map(g => g._id === updatedGroup._id ? updatedGroup : g);
         if (!updatedGroups.some(g => g._id === updatedGroup._id)) {
@@ -62,7 +69,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       socket.off('groupUpdate');
-      socket.disconnect(); // Cleanup Socket.io connection
+      socket.disconnect();
     };
   }, [user, isLoaded]);
 
@@ -76,8 +83,8 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
         clerkId: user.id,
         clerkName: user.firstName || "User",
         clerkAvatar: user.imageUrl || "",
-        startTime: startTime,
-        reachTime: reachTime,
+        startTime,
+        reachTime,
       });
       const newGroup = res.data;
       console.log("Newly created group:", newGroup);
@@ -111,12 +118,9 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
   const deleteGroup = async (id: string): Promise<void> => {
     if (!user) throw new Error("User not authenticated");
     try {
-      console.log("Deleting group with ID:", id, "for clerkId:", user.id);
       const res = await axios.delete(`${API_BASE_URL}/groups/${id}?clerkId=${user.id}`);
-      console.log("Delete response:", res.data);
       await fetchGroups();
     } catch (err: any) {
-      console.error("Delete failed:", err.response?.data || err.message);
       if (err.response?.status === 404) {
         throw new Error("group not found or maybe you don't have a permission to do so");
       } else if (err.response?.status === 403) {

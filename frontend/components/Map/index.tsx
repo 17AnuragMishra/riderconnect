@@ -15,15 +15,15 @@ import L from "leaflet";
 
 interface MapComponentProps {
   location: { latitude: number; longitude: number };
-  groupLocations: [string, { lat: number; lng: number; isOnline: boolean }][];
-  members?: { clerkId: string; name: string; avatar?: string }[];
+  groupLocations: [string, { lat: number; lng: number }][];
+  members?: { clerkId: string; name: string; avatar?: string; isOnline?: boolean }[];
   source: string;
   destination: string;
 }
 
 type LatLng = [number, number];
 
-function createAvatarIcon(avatarUrl?: string, isOnline?: boolean) {
+function createAvatarIcon(avatarUrl?: string, isOnline: boolean = false) {
   return L.divIcon({
     html: `
       <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; border: 2px solid ${
@@ -65,7 +65,7 @@ function MapUpdater({
   locations,
 }: {
   center: L.LatLngTuple;
-  locations: [string, { lat: number; lng: number; isOnline: boolean }][];
+  locations: [string, { lat: number; lng: number }][];
 }) {
   const map = useMap();
   useEffect(() => {
@@ -130,7 +130,7 @@ export default function MapComponent({
   return (
     <MapContainer center={userPos} scrollWheelZoom={true} style={{ height: "350px", width: "100%" }}>
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapUpdater center={userPos} locations={groupLocations} />
@@ -155,24 +155,24 @@ export default function MapComponent({
         position={userPos}
         icon={createAvatarIcon(
           members?.find((m) => m.clerkId === user?.id)?.avatar,
-          true
+          members?.find((m) => m.clerkId === user?.id)?.isOnline || false
         )}
       >
         <Popup>Your Location</Popup>
       </Marker>
 
-      {groupLocations.map(([clerkId, { lat, lng, isOnline }]) => (
+      {groupLocations.map(([clerkId, { lat, lng }]) => (
         <Marker
           key={clerkId}
           position={[lat, lng]}
           icon={createAvatarIcon(
             members?.find((m) => m.clerkId === clerkId)?.avatar,
-            isOnline
+            members?.find((m) => m.clerkId === clerkId)?.isOnline || false
           )}
         >
           <Popup>
             {members?.find((m) => m.clerkId === clerkId)?.name || clerkId} -{" "}
-            {isOnline ? "Online" : "Offline"}
+            {members?.find((m) => m.clerkId === clerkId)?.isOnline ? "Online" : "Offline"}
           </Popup>
         </Marker>
       ))}
