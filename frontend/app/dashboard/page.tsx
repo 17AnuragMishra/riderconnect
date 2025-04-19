@@ -93,10 +93,15 @@ export default function Dashboard() {
   const [newGroupName, setNewGroupName] = useState("");
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [reachTime, setReactTime] = useState("");
-  const [suggestedSource, setSuggestedSource] = useState([]);
-  const [suggestedDestination, setSuggestedDestination] = useState([]);
+  const [startDateTime, setStartDateTime] = useState("");
+  const [reachDateTime, setReachDateTime] = useState("");
+  const [validationErrors, setValidationErrors] = useState<{ startTime?: string; reachTime?: string }>({});
+  interface PlaceSuggestion {
+    display_name: string;
+  }
+  
+  const [suggestedSource, setSuggestedSource] = useState<PlaceSuggestion[]>([]);
+  const [suggestedDestination, setSuggestedDestination] = useState<PlaceSuggestion[]>([]);
   const [inviteCode, setInviteCode] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -108,12 +113,44 @@ export default function Dashboard() {
     if (isLoaded && !user) redirect("/sign-in");
     console.log("Current groups in dashboard:", groups); 
   }, [isLoaded, user, groups]);
+  const validateDateTimes = () => {
+    const errors: { startTime?: string; reachTime?: string } = {};
+    
+    if (!startDateTime) {
+      errors.startTime = "Start date and time is required";
+    }
+    
+    if (!reachDateTime) {
+      errors.reachTime = "Reach date and time is required";
+    }
+    
+    if (startDateTime && reachDateTime) {
+      const startDate = new Date(startDateTime);
+      const reachDate = new Date(reachDateTime);
+      
+      if (startDate >= reachDate) {
+        errors.reachTime = "Reach time must be after start time";
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim() || !source.trim() || !destination.trim()) {
       toast({
         title: "Error",
-        description: "Please fill all fields",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!validateDateTimes()) {
+      toast({
+        title: "Error",
+        description: "Please correct the date and time errors",
         variant: "destructive",
       });
       return;
@@ -121,7 +158,11 @@ export default function Dashboard() {
 
     setIsCreating(true);
     try {
-      const group = await createGroup(newGroupName, source, destination, startTime, reachTime);
+      // Format the date-time values for API
+      const formattedStartTime = new Date(startDateTime).toLocaleString();
+      const formattedReachTime = new Date(reachDateTime).toLocaleString();
+      
+      const group = await createGroup(newGroupName, source, destination, formattedStartTime, formattedReachTime);
       toast({
         title: "Success",
         description: `Group "${group.name}" created with code ${group.code}!`,
@@ -129,8 +170,9 @@ export default function Dashboard() {
       setNewGroupName("");
       setSource("");
       setDestination("");
-      setReactTime("");
-      setStartTime("");
+      setReachDateTime("");
+      setStartDateTime("");
+      setValidationErrors({});
       setCreateDialogOpen(false);
     } catch (error) {
       toast({
@@ -389,6 +431,7 @@ export default function Dashboard() {
                     placeholder="e.g., Road Trip 2025"
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
+                    required
                   />
                 </div>
                 <div className="grid gap-2">
@@ -401,6 +444,7 @@ export default function Dashboard() {
                       setSource(e.target.value);
                       fetchSuggestion(e.target.value, e.target.id);
                     }}
+                    required
                   />
                   {suggestedSource.length > 0 && source.length > 0 && (
                     <SuggestionList>
@@ -429,6 +473,7 @@ export default function Dashboard() {
                       setDestination(e.target.value);
                       fetchSuggestion(e.target.value, e.target.id);
                     }}
+                    required
                   />
                   {suggestedDestination.length > 0 && destination.length > 0 && (
                     <SuggestionList>
@@ -446,24 +491,48 @@ export default function Dashboard() {
                       ))}
                     </SuggestionList>
                   )}
-                  <Label htmlFor="startTime">Start Time</Label>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="startDateTime">Start Date and Time</Label>
                   <Input
-                    id="startTime"
-                    placeholder="e.g., 10:54 (24h)"
-                    value={startTime}
+                    id="startDateTime"
+                    type="datetime-local"
+                    value={startDateTime}
                     onChange={(e) => {
-                      setStartTime(e.target.value);
+                      setStartDateTime(e.target.value);
+                      // Clear validation error when user changes the input
+                      if (validationErrors.startTime) {
+                        setValidationErrors({...validationErrors, startTime: undefined});
+                      }
                     }}
+                    className={validationErrors.startTime ? "border-red-500" : ""}
+                    required
                   />
-                  <Label htmlFor="reactTime">Reach Time</Label>
+                  {validationErrors.startTime && (
+                    <p className="text-sm text-red-500">{validationErrors.startTime}</p>
+                  )}
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="reachDateTime">Reach Date and Time</Label>
                   <Input
-                    id="reactTime"
-                    placeholder="e.g., 10:50"
-                    value={reachTime}
+                    id="reachDateTime"
+                    type="datetime-local"
+                    value={reachDateTime}
                     onChange={(e) => {
-                      setReactTime(e.target.value);
+                      setReachDateTime(e.target.value);
+                      // Clear validation error when user changes the input
+                      if (validationErrors.reachTime) {
+                        setValidationErrors({...validationErrors, reachTime: undefined});
+                      }
                     }}
+                    className={validationErrors.reachTime ? "border-red-500" : ""}
+                    required
                   />
+                  {validationErrors.reachTime && (
+                    <p className="text-sm text-red-500">{validationErrors.reachTime}</p>
+                  )}
                 </div>
               </div>
               <DialogFooter>

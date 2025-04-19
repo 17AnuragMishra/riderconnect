@@ -161,6 +161,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
+import axios from "axios";
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -207,15 +208,77 @@ export default function App() {
   const [newGroupName, setNewGroupName] = useState("");
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
+  const [startDateTime, setStartDateTime] = useState("");
+  const [reachDateTime, setReachDateTime] = useState("");
+  const [validationErrors, setValidationErrors] = useState<{ startTime?: string; reachTime?: string }>({});
+  const [suggestedSource, setSuggestedSource] = useState<Place[]>([]);
+  interface Place {
+    display_name: string;
+  }
+  
+  const [suggestedDestination, setSuggestedDestination] = useState<Place[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const { createGroup } = useGroups();
   const { toast } = useToast();
+  
+  const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
+
+  const validateDateTimes = () => {
+    const errors: { startTime?: string; reachTime?: string } = {};
+    
+    if (!startDateTime) {
+      errors.startTime = "Start date and time is required";
+    }
+    
+    if (!reachDateTime) {
+      errors.reachTime = "Reach date and time is required";
+    }
+    
+    if (startDateTime && reachDateTime) {
+      const startDate = new Date(startDateTime);
+      const reachDate = new Date(reachDateTime);
+      
+      if (startDate >= reachDate) {
+        errors.reachTime = "Reach time must be after start time";
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const fetchSuggestion = async (place: string, sourceType: string) => {
+    if (place.length < 2) {
+      return;
+    }
+    try {
+      const url = `https://api.locationiq.com/v1/autocomplete?key=${LOCATION_IO_API_KEY}&q=${place}`;
+      const response = await axios.get(url);
+      if (sourceType === "source") {
+        setSuggestedSource(response.data);
+      } else {
+        setSuggestedDestination(response.data);
+      }
+      console.log(response.data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim() || !source.trim() || !destination.trim()) {
       toast({
         title: "Error",
-        description: "Please fill all fields",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateDateTimes()) {
+      toast({
+        title: "Error",
+        description: "Please correct the date and time errors",
         variant: "destructive",
       });
       return;
@@ -223,7 +286,11 @@ export default function App() {
 
     setIsCreating(true);
     try {
-      const group = await createGroup(newGroupName, source, destination);
+      // Format the date-time values for API
+      const formattedStartTime = new Date(startDateTime).toLocaleString();
+      const formattedReachTime = new Date(reachDateTime).toLocaleString();
+      
+      const group = await createGroup(newGroupName, source, destination, formattedStartTime, formattedReachTime);
       toast({
         title: "Success",
         description: `Group "${group.name}" created with code ${group.code}!`,
@@ -231,6 +298,9 @@ export default function App() {
       setNewGroupName("");
       setSource("");
       setDestination("");
+      setStartDateTime("");
+      setReachDateTime("");
+      setValidationErrors({});
       setCreateDialogOpen(false);
     } catch (error) {
       toast({
@@ -840,6 +910,7 @@ export default function App() {
                             placeholder="e.g., Road Trip 2025"
                             value={newGroupName}
                             onChange={(e) => setNewGroupName(e.target.value)}
+                            required
                           />
                         </div>
                         <div className="grid gap-2">
@@ -848,8 +919,28 @@ export default function App() {
                             id="source"
                             placeholder="e.g., New York"
                             value={source}
-                            onChange={(e) => setSource(e.target.value)}
+                            onChange={(e) => {
+                              setSource(e.target.value);
+                              fetchSuggestion(e.target.value, e.target.id);
+                            }}
+                            required
                           />
+                          {suggestedSource.length > 0 && source.length > 0 && (
+                            <div className="flex flex-col border border-border rounded-md max-h-200 overflow-y-auto z-10 bg-background">
+                              {suggestedSource.map((place, index) => (
+                                <div
+                                  className='p-2 hover:bg-muted cursor-pointer'
+                                  key={index}
+                                  onClick={() => {
+                                    setSource(place.display_name)
+                                    setSuggestedSource([]);
+                                  }}
+                                >
+                                  {place.display_name}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="destination">Destination</Label>
@@ -857,8 +948,69 @@ export default function App() {
                             id="destination"
                             placeholder="e.g., Boston"
                             value={destination}
-                            onChange={(e) => setDestination(e.target.value)}
+                            onChange={(e) => {
+                              setDestination(e.target.value);
+                              fetchSuggestion(e.target.value, e.target.id);
+                            }}
+                            required
                           />
+                          {suggestedDestination.length > 0 && destination.length > 0 && (
+                            <div className="flex flex-col border border-border rounded-md max-h-200 overflow-y-auto z-10 bg-background">
+                              {suggestedDestination.map((place, index) => (
+                                <div 
+                                  className='p-2 hover:bg-muted cursor-pointer'
+                                  key={index}
+                                  onClick={() => {
+                                    setDestination(place.display_name);
+                                    setSuggestedDestination([]);
+                                  }}
+                                >
+                                  {place.display_name}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="startDateTime">Start Date and Time</Label>
+                          <Input
+                            id="startDateTime"
+                            type="datetime-local"
+                            value={startDateTime}
+                            onChange={(e) => {
+                              setStartDateTime(e.target.value);
+                              // Clear validation error when user changes the input
+                              if (validationErrors.startTime) {
+                                setValidationErrors({...validationErrors, startTime: undefined});
+                              }
+                            }}
+                            className={validationErrors.startTime ? "border-red-500" : ""}
+                            required
+                          />
+                          {validationErrors.startTime && (
+                            <p className="text-sm text-red-500">{validationErrors.startTime}</p>
+                          )}
+                        </div>
+                        
+                        <div className="grid gap-2">
+                          <Label htmlFor="reachDateTime">Reach Date and Time</Label>
+                          <Input
+                            id="reachDateTime"
+                            type="datetime-local"
+                            value={reachDateTime}
+                            onChange={(e) => {
+                              setReachDateTime(e.target.value);
+                              // Clear validation error when user changes the input
+                              if (validationErrors.reachTime) {
+                                setValidationErrors({...validationErrors, reachTime: undefined});
+                              }
+                            }}
+                            className={validationErrors.reachTime ? "border-red-500" : ""}
+                            required
+                          />
+                          {validationErrors.reachTime && (
+                            <p className="text-sm text-red-500">{validationErrors.reachTime}</p>
+                          )}
                         </div>
                       </div>
                       <DialogFooter>
