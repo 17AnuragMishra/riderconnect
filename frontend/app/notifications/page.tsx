@@ -11,17 +11,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, CheckCircle, Clock, Users, AlertTriangle, MessageSquare } from "lucide-react";
 import { useTheme } from "next-themes";
 import clsx from "clsx";
+import io from "socket.io-client";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 // Define the notification interface with proper typing
 interface Notification {
   id: string;
-  sender_id: string;
-  group_name: string;
+  senderId?: string;
+  groupId: string;
+  senderName?: string;
+  groupName: string;
   time: string;
   message: string;
   isRead: boolean;
   priority: "low" | "medium" | "high";
-  type: "message" | "invitation" | "update" | "reminder";
+  type: "message" | "invitation" | "update" | "reminder" | "distance";
 }
 
 // Skeleton loader for notifications
@@ -111,7 +116,6 @@ const NotificationCard = ({
   };
   
   // Determine notification type icon and styling
-  // Determine notification type icon and styling
   const getTypeStyles = () => {
     switch(notification.type) {
       case "message":
@@ -137,6 +141,12 @@ const NotificationCard = ({
           bg: "bg-[hsl(var(--type-update)/0.15)]",
           text: "text-[hsl(var(--type-update-foreground))]",
           icon: <Bell className="w-4 h-4" />
+        };
+      case "distance":
+        return {
+          bg: "bg-[hsl(var(--priority-high)/0.15)]",
+          text: "text-[hsl(var(--priority-high))]",
+          icon: <AlertTriangle className="w-4 h-4" />
         };
       default:
         return {
@@ -176,7 +186,7 @@ const NotificationCard = ({
               <h3 className={clsx(
                 "font-medium text-card-foreground"
               )}>
-                {notification.group_name}
+                {notification.groupName}
               </h3>
               {isUnread && (
                 <Badge className={clsx(
@@ -233,147 +243,117 @@ const Page = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
   const [loading, setLoading] = useState(true);
-  const { resolvedTheme, setTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-  
+  const { resolvedTheme } = useTheme();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
+
   // Client-side rendering check
   const [isMounted, setIsMounted] = useState(false);
-  
+
   useEffect(() => {
     setIsMounted(true);
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // Sample notification data with new structure
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      sender_id: "user1",
-      group_name: "Project Team",
-      time: "2025-04-08 10:00 AM",
-      message: "Meeting scheduled at 3 PM today.",
-      isRead: false,
-      priority: "high",
-      type: "reminder",
-    },
-    {
-      id: "2",
-      sender_id: "user2",
-      group_name: "Study Group",
-      time: "2025-04-08 09:30 AM",
-      message: "Assignment deadline is tomorrow.",
-      isRead: false,
-      priority: "medium",
-      type: "reminder",
-    },
-    {
-      id: "3",
-      sender_id: "user3",
-      group_name: "Gaming Squad",
-      time: "2025-04-08 08:15 AM",
-      message: "Game night starts at 9 PM!",
-      isRead: false,
-      priority: "low",
-      type: "update",
-    },
-    {
-      id: "4",
-      sender_id: "user4",
-      group_name: "Friends",
-      time: "2025-04-07 07:00 PM",
-      message: "Let's plan a weekend trip.",
-      isRead: true,
-      priority: "medium",
-      type: "message",
-    },
-    {
-      id: "5",
-      sender_id: "user5",
-      group_name: "HR Dept",
-      time: "2025-04-07 06:45 PM",
-      message: "Submit your ID proofs.",
-      isRead: true,
-      priority: "high",
-      type: "reminder",
-    },
-    {
-      id: "6",
-      sender_id: "user6",
-      group_name: "Tech Team",
-      time: "2025-04-07 05:20 PM",
-      message: "Code review scheduled for tomorrow.",
-      isRead: false,
-      priority: "medium",
-      type: "update",
-    },
-    {
-      id: "7",
-      sender_id: "user7",
-      group_name: "Club Members",
-      time: "2025-04-07 04:10 PM",
-      message: "New event coming this Friday.",
-      isRead: true,
-      priority: "low",
-      type: "update",
-    },
-    {
-      id: "8",
-      sender_id: "user8",
-      group_name: "Hackathon Team",
-      time: "2025-04-07 03:00 PM",
-      message: "Submit your demo before 6 PM.",
-      isRead: false,
-      priority: "high",
-      type: "reminder",
-    },
-    {
-      id: "9",
-      sender_id: "user9",
-      group_name: "Mentorship Program",
-      time: "2025-04-07 02:30 PM",
-      message: "New session is live now.",
-      isRead: true,
-      priority: "medium",
-      type: "update",
-    },
-    {
-      id: "10",
-      sender_id: "user10",
-      group_name: "Alumni Group",
-      time: "2025-04-07 01:45 PM",
-      message: "Join the networking meet this weekend.",
-      isRead: false,
-      priority: "low",
-      type: "invitation",
-    },
-  ]);
+    if (!user) return;
+
+    // Initialize Socket.io
+    const newSocket = io(API_BASE_URL, {
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      auth: { clerkId: user.id },
+    });
+    setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Socket connected:', newSocket.id);
+    });
+
+    newSocket.on('notification', (notification: Notification) => {
+      setNotifications((prev) => {
+        if (!prev.some(n => n.id === notification.id)) {
+          return [notification, ...prev];
+        }
+        return prev;
+      });
+      toast({
+        title: `${notification.groupName} - ${notification.type}`,
+        description: notification.message,
+        variant: notification.priority === 'high' ? 'destructive' : 'default',
+      });
+    });
+
+    newSocket.on('notificationRead', ({ notificationId, clerkId }) => {
+      if (clerkId === user.id) {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notificationId ? { ...n, isRead: true } : n
+          )
+        );
+      }
+    });
+
+    newSocket.on('error', ({ message }) => {
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+    });
+
+    newSocket.connect();
+
+    // Fetch initial notifications
+    const fetchNotifications = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/notifications?clerkId=${user.id}`);
+        if (!response.ok) throw new Error('Failed to fetch notifications');
+        const data = await response.json();
+        setNotifications(data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Fetch notifications error:', err);
+        toast({
+          title: 'Error',
+          description: 'Failed to load notifications',
+          variant: 'destructive',
+        });
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [user, toast]);
 
   // Mark all notifications as read
-  const markAllAsRead = () => {
-    const updated = notifications.map((n) => ({ ...n, isRead: true }));
-    setNotifications(updated);
-    toast({ 
-      title: "All notifications marked as read",
-      description: "Your notification list has been updated"
-    });
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/mark-all`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clerkId: user?.id }),
+      });
+      if (!response.ok) throw new Error('Failed to mark all as read');
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      toast({ 
+        title: "All notifications marked as read",
+        description: "Your notification list has been updated",
+      });
+    } catch (err) {
+      console.error('Mark all as read error:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to mark all as read',
+        variant: 'destructive',
+      });
+    }
   };
 
-  // Mark a single notification as read by ID
+  // Mark a single notification as read
   const markOneAsRead = (id: string) => {
-    const updated = notifications.map((notification) => 
-      notification.id === id 
-        ? { ...notification, isRead: true } 
-        : notification
-    );
-    setNotifications(updated);
-    toast({ 
-      title: "Notification marked as read" 
-    });
+    socket?.emit('markNotificationRead', { notificationId: id, clerkId: user?.id });
   };
 
   // Filter notifications by read status
@@ -428,7 +408,6 @@ const Page = () => {
           </Button>
         </div>
 
-        {/* Tabs using the UI Component */}
         <Tabs 
           defaultValue="unread" 
           value={activeTab} 
