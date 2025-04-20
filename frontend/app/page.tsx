@@ -274,7 +274,6 @@ export default function App() {
       });
       return;
     }
-
     if (!validateDateTimes()) {
       toast({
         title: "Error",
@@ -283,14 +282,15 @@ export default function App() {
       });
       return;
     }
-
     setIsCreating(true);
     try {
-      // Format the date-time values for API
-      const formattedStartTime = new Date(startDateTime).toLocaleString();
-      const formattedReachTime = new Date(reachDateTime).toLocaleString();
-      
-      const group = await createGroup(newGroupName, source, destination, formattedStartTime, formattedReachTime);
+      const group = await createGroup(
+        newGroupName,
+        source,
+        destination,
+        new Date(startDateTime).toISOString(), 
+        new Date(reachDateTime).toISOString()
+      );
       toast({
         title: "Success",
         description: `Group "${group.name}" created with code ${group.code}!`,
@@ -298,8 +298,8 @@ export default function App() {
       setNewGroupName("");
       setSource("");
       setDestination("");
-      setStartDateTime("");
       setReachDateTime("");
+      setStartDateTime("");
       setValidationErrors({});
       setCreateDialogOpen(false);
     } catch (error) {

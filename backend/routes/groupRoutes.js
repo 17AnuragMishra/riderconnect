@@ -7,24 +7,25 @@ import Notification from '../models/Notification.js';
 const router = express.Router();
 
 router.post('/create', async (req, res) => {
-  const { name, source, destination, clerkId, clerkName, clerkAvatar, startTime, reachTime } = req.body;
-  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const { name, source, destination, startTime, reachTime, clerkId, clerkName } = req.body;
   try {
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     const group = new Group({
       name,
+      code,
       source,
       destination,
-      code,
-      startTime,
-      reachTime,
+      startTime: new Date(startTime),
+      reachTime: new Date(reachTime),
+      members: [{ clerkId, name: clerkName }],
       createdBy: clerkId,
-      members: [{ clerkId, name: clerkName, avatar: clerkAvatar }],
     });
     await group.save();
-    req.app.get('io').to(group._id.toString()).emit('groupUpdate', group);
+    const io = req.app.get('io');
+    io.emit('groupUpdate', group);
     res.json(group);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
