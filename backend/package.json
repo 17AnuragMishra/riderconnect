@@ -12,6 +12,7 @@
     "express-rate-limit": "^7.5.0",
     "geolib": "^3.3.4",
     "mongoose": "^7.6.3",
+    "node-cron": "^3.0.3",
     "socket.io": "^4.7.2"
   },
   "devDependencies": {
