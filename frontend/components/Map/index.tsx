@@ -13,10 +13,8 @@ import {
   LayersControl,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import "leaflet-fullscreen/dist/Leaflet.fullscreen.css";
 import { useUser } from "@clerk/nextjs";
 import L from "leaflet";
-import "leaflet-fullscreen";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
@@ -228,7 +226,6 @@ export default function MapComponent({
             minHeight: 'inherit',
             position: 'relative' 
           }}
-          fullscreenControl={true}
         >
           {/* Add map controls */}
           <ZoomControl position="topright" />

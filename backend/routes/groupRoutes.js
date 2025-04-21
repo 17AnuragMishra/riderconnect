@@ -15,8 +15,8 @@ router.post('/create', async (req, res) => {
       code,
       source,
       destination,
-      startTime: new Date(startTime),
-      reachTime: new Date(reachTime),
+      startTime: new Date(startTime).toISOString(),
+      reachTime: new Date(reachTime).toISOString(),
       members: [{ clerkId, name: clerkName }],
       createdBy: clerkId,
     });
@@ -54,6 +54,32 @@ router.post('/join', async (req, res) => {
     await Notification.insertMany(notifications);
     req.app.get('io').to(group._id.toString()).emit('groupUpdate', group);
     res.json({ id: group._id, name: group.name, code, source: group.source, destination: group.destination, members: group.members });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get('/active', async (req, res) => {
+  try {
+    const clerkId = req.query.clerkId;
+    if (!clerkId) {
+      return res.status(400).json({ error: 'clerkId missing' });
+    }
+    const now = new Date();
+    const groups = await Group.find({'members.clerkId': clerkId, reachTime: {$gte: now}});
+    res.json({ data: groups });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get('/archive', async (req, res) => {
+  try {
+    const clerkId = req.query.clerkId;
+    if (!clerkId) {
+      return res.status(400).json({ error: 'clerkId missing' });
+    }
+    const now = new Date();
+    const groups = await Group.find({'members.clerkId': clerkId, reachTime: {$lt: now}});
+    res.json({ data: groups });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -136,8 +136,8 @@ export default function Dashboard() {
     }
     setIsCreating(true);
     try {
-      const formattedStartTime = new Date(startDateTime).toLocaleString();
-      const formattedReachTime = new Date(reachDateTime).toLocaleString();
+      const formattedStartTime = new Date(startDateTime).toISOString();
+      const formattedReachTime = new Date(reachDateTime).toISOString();
       const group = await createGroup(newGroupName, source, destination, formattedStartTime, formattedReachTime);
       toast({
         title: "Success",
