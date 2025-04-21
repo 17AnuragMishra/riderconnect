@@ -7,42 +7,26 @@ import Notification from '../models/Notification.js';
 const router = express.Router();
 
 router.post('/create', async (req, res) => {
-  const {
-    name,
-    source,
-    destination,
-    clerkId,
-    clerkName,
-    clerkAvatar,
-    startTime,
-    reachTime
-  } = req.body;
-
-  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-
+  const { name, source, destination, startTime, reachTime, clerkId, clerkName } = req.body;
   try {
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     const group = new Group({
       name,
+      code,
       source,
       destination,
-      code,
-      startTime,
-      reachTime,
-      isActive: true, // yaha pr active state kr rha hu create k time
+      startTime: new Date(startTime).toISOString(),
+      reachTime: new Date(reachTime).toISOString(),
+      members: [{ clerkId, name: clerkName }],
       createdBy: clerkId,
-      members: [{
-        clerkId,
-        name: clerkName,
-        avatar: clerkAvatar
-      }]
     });
 
     await group.save();
-
-    req.app.get('io').to(group._id.toString()).emit('groupUpdate', group);
+    const io = req.app.get('io');
+    io.emit('groupUpdate', group);
     res.json(group);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -72,6 +56,32 @@ router.post('/join', async (req, res) => {
     await Notification.insertMany(notifications);
     req.app.get('io').to(group._id.toString()).emit('groupUpdate', group);
     res.json({ id: group._id, name: group.name, code, source: group.source, destination: group.destination, members: group.members });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get('/active', async (req, res) => {
+  try {
+    const clerkId = req.query.clerkId;
+    if (!clerkId) {
+      return res.status(400).json({ error: 'clerkId missing' });
+    }
+    const now = new Date();
+    const groups = await Group.find({'members.clerkId': clerkId, reachTime: {$gte: now}});
+    res.json({ data: groups });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get('/archive', async (req, res) => {
+  try {
+    const clerkId = req.query.clerkId;
+    if (!clerkId) {
+      return res.status(400).json({ error: 'clerkId missing' });
+    }
+    const now = new Date();
+    const groups = await Group.find({'members.clerkId': clerkId, reachTime: {$lt: now}});
+    res.json({ data: groups });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

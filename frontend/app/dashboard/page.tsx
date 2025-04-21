@@ -1,11 +1,8 @@
 "use client";
 
-// React and Next.js imports
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-
-// UI Components
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,36 +37,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-// Styling
-import styled, { keyframes } from "styled-components";
-
-// Icons
-import {
-  Plus,
-  Users,
-  ArrowRight,
-  Trash2,
-  MapPin,
-  User,
-  Calendar,
-  Clock,
-} from "lucide-react";
+import styled, { keyframes } from 'styled-components';
+import { Plus, Users, ArrowRight, Trash2, MapPin, User, Calendar, Clock } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-// Hooks and Utilities
 import { useUser } from "@clerk/nextjs";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
-// Remove unnecessary imports
-// import { log } from "console";
-// import { errorMonitor } from "events";
 
 interface Member {
   clerkId: string;
@@ -92,11 +71,13 @@ interface Group {
   createdAt: string;
 }
 
+interface PlaceSuggestion {
+  display_name: string;
+}
+
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
-
   const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
-
   const { groups, createGroup, joinGroup, deleteGroup } = useGroups();
   const { toast } = useToast();
 
@@ -105,14 +86,7 @@ export default function Dashboard() {
   const [destination, setDestination] = useState("");
   const [startDateTime, setStartDateTime] = useState("");
   const [reachDateTime, setReachDateTime] = useState("");
-  const [validationErrors, setValidationErrors] = useState<{
-    startTime?: string;
-    reachTime?: string;
-  }>({});
-  interface PlaceSuggestion {
-    display_name: string;
-  }
-
+  const [validationErrors, setValidationErrors] = useState<{ startTime?: string; reachTime?: string }>({});
   const [suggestedSource, setSuggestedSource] = useState<PlaceSuggestion[]>([]);
   const [suggestedDestination, setSuggestedDestination] = useState<
     PlaceSuggestion[]
@@ -124,29 +98,24 @@ export default function Dashboard() {
   const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
-    if (isLoaded && !user) redirect("/sign-in");
-    console.log("Current groups in dashboard:", groups);
-  }, [isLoaded, user, groups]);
+    if (isLoaded && !user) redirect("/sign-in")
+  }, [isLoaded, user]);
+
   const validateDateTimes = () => {
     const errors: { startTime?: string; reachTime?: string } = {};
-
     if (!startDateTime) {
       errors.startTime = "Start date and time is required";
     }
-
     if (!reachDateTime) {
       errors.reachTime = "Reach date and time is required";
     }
-
     if (startDateTime && reachDateTime) {
       const startDate = new Date(startDateTime);
       const reachDate = new Date(reachDateTime);
-
       if (startDate >= reachDate) {
         errors.reachTime = "Reach time must be after start time";
       }
     }
-
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -160,7 +129,6 @@ export default function Dashboard() {
       });
       return;
     }
-
     if (!validateDateTimes()) {
       toast({
         title: "Error",
@@ -169,20 +137,11 @@ export default function Dashboard() {
       });
       return;
     }
-
     setIsCreating(true);
     try {
-      // Format the date-time values for API
-      const formattedStartTime = new Date(startDateTime).toLocaleString();
-      const formattedReachTime = new Date(reachDateTime).toLocaleString();
-
-      const group = await createGroup(
-        newGroupName,
-        source,
-        destination,
-        formattedStartTime,
-        formattedReachTime
-      );
+      const formattedStartTime = new Date(startDateTime).toISOString();
+      const formattedReachTime = new Date(reachDateTime).toISOString();
+      const group = await createGroup(newGroupName, source, destination, formattedStartTime, formattedReachTime);
       toast({
         title: "Success",
         description: `Group "${group.name}" created with code ${group.code}!`,
@@ -214,7 +173,6 @@ export default function Dashboard() {
       });
       return;
     }
-
     setIsJoining(true);
     try {
       const group = await joinGroup(inviteCode);
@@ -240,36 +198,27 @@ export default function Dashboard() {
     }
   };
 
-  // Calculate consistent metrics based on source and destination
   const getGroupMetrics = (source: string, destination: string) => {
-    // Use a hash of the source and destination to get consistent numbers
-    const hash = (source + destination).split("").reduce((a, b) => {
-      a = (a << 5) - a + b.charCodeAt(0);
+    const hash = (source + destination).split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
-
     return {
-      distance: Math.abs(100 + (hash % 400)), // 100-500km
+      distance: Math.abs(100 + (hash % 400)),
       duration: {
-        hours: Math.abs(1 + (hash % 9)), // 1-10h
-        minutes: Math.abs(hash % 60), // 0-59m
-      },
+        hours: Math.abs(1 + (hash % 9)),
+        minutes: Math.abs(hash % 60)
+      }
     };
   };
 
-  // Animated number component
-  const AnimatedValue: React.FC<{ value: number; suffix?: string }> = ({
-    value,
-    suffix = "",
-  }) => {
+  const AnimatedValue: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = "" }) => {
     const [displayValue, setDisplayValue] = useState(0);
-
     useEffect(() => {
       const duration = 1000;
       const steps = 20;
       const increment = value / steps;
       const interval = duration / steps;
-
       let current = 0;
       const timer = setInterval(() => {
         current += increment;
@@ -279,16 +228,9 @@ export default function Dashboard() {
         }
         setDisplayValue(Math.floor(current));
       }, interval);
-
       return () => clearInterval(timer);
     }, [value]);
-
-    return (
-      <span>
-        {displayValue.toLocaleString()}
-        {suffix}
-      </span>
-    );
+    return <span>{displayValue.toLocaleString()}{suffix}</span>;
   };
 
   const getTotalMembers = () => {
@@ -299,14 +241,23 @@ export default function Dashboard() {
   };
 
   const getActiveRides = () => {
-    return Math.max(1, Math.floor(groups.length / 2));
+    const now = new Date();
+    return groups.reduce((count: number, group: Group) => {
+      try {
+        const reachTime = new Date(group.reachTime);
+        if (!isNaN(reachTime.getTime()) && reachTime >= now) {
+          return count + 1;
+        }
+        return count;
+      } catch (error) {
+        return count;
+      }
+    }, 0);
   };
 
   if (!isLoaded) return <DashboardSkeleton />;
   const fetchSuggestion = async (place: string, sourceType: string) => {
-    if (place.length < 2) {
-      return;
-    }
+    if (place.length < 2) return;
     try {
       const url = `https://api.locationiq.com/v1/autocomplete?key=${LOCATION_IO_API_KEY}&q=${place}`;
       const response = await axios.get(url);
@@ -315,14 +266,12 @@ export default function Dashboard() {
       } else {
         setSuggestedDestination(response.data);
       }
-      console.log(response.data);
     } catch (error) {
       console.log(error);
     }
   };
 
   const handleDeleteGroup = async (id: string, name: string) => {
-    console.log("Attempting to delete group with ID:", id);
     try {
       await deleteGroup(id);
       toast({ title: "Success", description: `Group "${name}" deleted!` });
@@ -335,6 +284,7 @@ export default function Dashboard() {
       });
     }
   };
+
   return (
     <div className="flex-1 container max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 md:py-12">
       <div className="flex flex-col gap-8">
@@ -346,8 +296,6 @@ export default function Dashboard() {
             Create or join group rides to track and chat with fellow riders
           </p>
         </div>
-
-        {/* Stats/Overview Section */}
         <AnimatedSection className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Overview</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -373,7 +321,6 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </StatsCard>
-
             <StatsCard>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -396,7 +343,6 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </StatsCard>
-
             <StatsCard>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -419,7 +365,6 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </StatsCard>
-
             <StatsCard>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">

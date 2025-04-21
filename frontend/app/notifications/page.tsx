@@ -36,19 +36,19 @@ const NotificationSkeleton = () => {
       {[1, 2, 3].map((i) => (
         <div 
           key={i} 
-          className="p-4 border rounded-lg animate-pulse bg-card border-border"
+          className="p-3.5 sm:p-4 border rounded-lg animate-pulse bg-card border-border"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-muted"></div>
-            <div className="flex-1">
-              <div className="flex justify-between items-start">
-                <div className="h-4 w-32 rounded bg-muted"></div>
-                <div className="h-3 w-16 rounded bg-muted"></div>
+          <div className="flex items-start gap-2.5 sm:gap-3 overflow-hidden">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-muted flex-shrink-0"></div>
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start w-full">
+                <div className="h-4 w-28 sm:w-32 rounded bg-muted max-w-full"></div>
+                <div className="h-3 w-16 rounded bg-muted mt-1.5 sm:mt-0 flex-shrink-0"></div>
               </div>
-              <div className="h-3 w-full mt-2 rounded bg-muted"></div>
-              <div className="h-3 w-3/4 mt-1 rounded bg-muted"></div>
-              <div className="mt-3 flex justify-end">
-                <div className="h-8 w-28 rounded bg-muted"></div>
+              <div className="h-3 w-full mt-2.5 rounded bg-muted"></div>
+              <div className="h-3 w-3/4 mt-1.5 rounded bg-muted"></div>
+              <div className="mt-3.5 flex justify-center sm:justify-end">
+                <div className="h-9 sm:h-8 w-full sm:w-28 rounded bg-muted"></div>
               </div>
             </div>
           </div>
@@ -57,7 +57,6 @@ const NotificationSkeleton = () => {
     </div>
   );
 };
-
 // Component for individual notification cards
 const NotificationCard = ({ 
   notification, 
@@ -166,31 +165,31 @@ const NotificationCard = ({
       exit={{ opacity: 0, x: -10 }}
       transition={{ duration: 0.3 }}
       className={clsx(
-        "p-4 rounded-lg transition-all duration-200 border shadow-sm hover:shadow-md",
+        "p-3.5 sm:p-4 md:p-5 rounded-lg transition-all duration-200 border shadow-sm hover:shadow-md",
         "bg-card hover:bg-card/90 border-border",
         isUnread && "border-l-4",
         isUnread && priorityStyles.border
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5 sm:gap-3 overflow-hidden">
         <div className={clsx(
-          "flex-shrink-0 p-2 rounded-full",
+          "flex-shrink-0 p-2 sm:p-2.5 rounded-full",
           typeStyles.bg
         )}>
           {typeStyles.icon}
         </div>
         
-        <div className="flex-1">
-          <div className="flex justify-between items-start mb-1">
-            <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1.5 sm:mb-1 gap-1 sm:gap-0 w-full">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 max-w-[calc(100%-3rem)] sm:max-w-[70%]">
               <h3 className={clsx(
-                "font-medium text-card-foreground"
+                "font-medium text-card-foreground text-sm sm:text-base line-clamp-1 break-all sm:break-words max-w-full"
               )}>
                 {notification.groupName}
               </h3>
               {isUnread && (
                 <Badge className={clsx(
-                  "text-xs",
+                  "text-xs h-5 px-2 py-0.5 whitespace-nowrap flex-shrink-0",
                   priorityStyles.bg,
                   priorityStyles.text
                 )}>
@@ -198,22 +197,22 @@ const NotificationCard = ({
                 </Badge>
               )}
             </div>
-            <time className="text-xs text-muted-foreground">
+            <time className="text-xs text-muted-foreground mt-0.5 sm:mt-0 whitespace-nowrap flex-shrink-0">
               {getRelativeTime(notification.time)}
             </time>
           </div>
           
-          <p className="text-sm text-foreground">
+          <p className="text-sm text-foreground line-clamp-3 sm:line-clamp-2 md:line-clamp-none break-words overflow-hidden text-ellipsis max-w-full">
             {notification.message}
           </p>
           
-          <div className="flex justify-between items-center mt-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-2.5 sm:gap-2 mt-3 sm:mt-3.5 w-full">
             <Badge variant="outline" className={clsx(
-              "text-xs",
+              "text-xs h-7 sm:h-6 inline-flex items-center justify-center px-2 truncate max-w-full sm:max-w-[50%]",
               typeStyles.text
             )}>
               {typeStyles.icon}
-              <span className="ml-1">{notification.type}</span>
+              <span className="ml-1 truncate">{notification.type}</span>
             </Badge>
             
             {isUnread && (
@@ -223,12 +222,13 @@ const NotificationCard = ({
                 className={clsx(
                   "transition-all duration-300 font-medium flex items-center",
                   "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md",
-                  "border border-transparent",
-                  "focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring)/0.3)]"
+                  "border border-transparent w-full sm:w-auto justify-center",
+                  "focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring)/0.3)]",
+                  "py-2.5 px-4 h-10 sm:h-9 text-sm whitespace-nowrap overflow-hidden"
                 )}
               >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Mark as Read
+                <CheckCircle className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                <span className="truncate">Mark as Read</span>
               </Button>
             )}
           </div>
@@ -385,26 +385,27 @@ const Page = () => {
 
   return (
     <div className={clsx(
-      "min-h-screen p-4 md:p-6 transition-colors duration-200",
+      "min-h-screen p-3.5 sm:p-4 md:p-6 transition-colors duration-200 overflow-x-hidden",
       "bg-background text-foreground"
     )}>
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 sm:gap-4 mb-5 sm:mb-6 w-full">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground truncate max-w-full">
             Notifications
           </h1>
           <Button
             onClick={markAllAsRead}
             variant="outline"
             className={clsx(
-              "transition-all hover:scale-105",
-              "bg-primary text-primary-foreground",
-              "hover:bg-primary/90 hover:shadow-md"
+              "transition-all hover:scale-105 w-full sm:w-auto",
+              "bg-primary text-primary-foreground py-2.5 px-4 h-11 sm:h-10",
+              "hover:bg-primary/90 hover:shadow-md text-sm sm:text-base",
+              "font-medium whitespace-nowrap overflow-hidden"
             )}
             disabled={unread.length === 0}
           >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Mark all as read
+            <CheckCircle className="h-4 w-4 mr-2.5 sm:mr-2 flex-shrink-0" />
+            <span className="truncate">Mark all as read</span>
           </Button>
         </div>
 
@@ -412,28 +413,33 @@ const Page = () => {
           defaultValue="unread" 
           value={activeTab} 
           onValueChange={(value) => setActiveTab(value as "unread" | "read")}
-          className="mb-6"
+          className="mb-5 sm:mb-6"
         >
           <TabsList 
             className={clsx(
-              "grid w-full grid-cols-2 mb-6",
-              "bg-muted"
+              "grid w-full grid-cols-2 mb-5 sm:mb-6 h-12 sm:h-11",
+              "bg-muted rounded-md"
             )}
           >
             <TabsTrigger 
               value="unread"
-              className="data-[state=active]:bg-background"
+              className="text-sm sm:text-base py-2.5 px-3 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center transition-all duration-200"
             >
-              Unread ({unread.length})
+              <span>Unread</span>
+              <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary/15 text-primary text-xs font-medium">
+                {unread.length}
+              </span>
             </TabsTrigger>
             <TabsTrigger 
               value="read"
-              className="data-[state=active]:bg-background"
+              className="text-sm sm:text-base py-2.5 px-3 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center transition-all duration-200"
             >
-              Read ({read.length})
+              <span>Read</span>
+              <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-muted-foreground/15 text-muted-foreground text-xs font-medium">
+                {read.length}
+              </span>
             </TabsTrigger>
           </TabsList>
-
           <TabsContent value="unread" className="mt-0">
             {loading ? (
               <NotificationSkeleton />
@@ -441,15 +447,15 @@ const Page = () => {
               <div>
                 {unread.length === 0 ? (
                   <div className={clsx(
-                    "p-6 text-center rounded-lg border",
+                    "p-5 sm:p-6 text-center rounded-lg border",
                     "bg-card/50 border-border text-muted-foreground"
                   )}>
                     <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>All caught up! No unread notifications.</p>
+                    <p className="break-words">All caught up! No unread notifications.</p>
                   </div>
                 ) : (
                   <AnimatePresence>
-                    <div className="space-y-4">
+                    <div className="space-y-4 w-full overflow-hidden">
                       {unread.map((notification) => (
                         <NotificationCard
                           key={notification.id}
@@ -472,15 +478,15 @@ const Page = () => {
               <div>
                 {read.length === 0 ? (
                   <div className={clsx(
-                    "p-6 text-center rounded-lg border",
+                    "p-5 sm:p-6 text-center rounded-lg border",
                     "bg-card/50 border-border text-muted-foreground"
                   )}>
                     <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No read notifications yet.</p>
+                    <p className="break-words">No read notifications yet.</p>
                   </div>
                 ) : (
                   <AnimatePresence>
-                    <div className="space-y-4">
+                    <div className="space-y-4 w-full overflow-hidden">
                       {read.map((notification) => (
                         <NotificationCard
                           key={notification.id}

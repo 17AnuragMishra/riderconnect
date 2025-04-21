@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
 import io, { Socket } from "socket.io-client";
+import { log } from "node:console";
 
 interface Member {
   clerkId: string;
@@ -34,6 +35,8 @@ const socket: Socket = io(API_BASE_URL, { autoConnect: false });
 export function GroupProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoaded } = useUser();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [activeGroups, setActiveGroups] = useState<Group[]>([]);
+  const [archivedGroups, setArchivedGroups] = useState<Group[]>([]);
 
   const fetchGroups = async () => {
     if (!user || !isLoaded) return;
@@ -43,6 +46,15 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
         g.members.some(m => m.clerkId === user.id)
       );
       setGroups(filteredGroups);
+      const now = new Date();
+      setActiveGroups(filteredGroups.filter((g: Group) => {
+        const reachTime = new Date(g.reachTime);
+        return !isNaN(reachTime.getTime()) && reachTime >= now;
+      }));
+      setArchivedGroups(filteredGroups.filter((g: Group) => {
+        const reachTime = new Date(g.reachTime);
+        return !isNaN(reachTime.getTime()) && reachTime < now;
+      }));
     } catch (err) {
       console.error("Failed to fetch groups:", err);
     }
@@ -50,14 +62,16 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user || !isLoaded) return;
-
-    console.log("Current clerkId:", user?.id);
     fetchGroups();
-
     socket.connect();
-    socket.on('groupUpdate', (updatedGroup: Group) => {
+    socket.on('groupUpdate', (updatedGroup: Group & { deleted?: boolean }) => {
+      if (updatedGroup.deleted) {
+        setGroups((prev) => prev.filter(g => g._id !== updatedGroup._id));
+        setActiveGroups((prev) => prev.filter(g => g._id !== updatedGroup._id));
+        setArchivedGroups((prev) => prev.filter(g => g._id !== updatedGroup._id));
+        return;
+      }
       if (!user || !updatedGroup.members.some(m => m.clerkId === user.id)) {
-        console.log('Ignoring groupUpdate for non-member group:', updatedGroup._id);
         return;
       }
       setGroups((prev) => {
@@ -67,6 +81,28 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
         }
         return updatedGroups;
       });
+      const now = new Date();
+      const reachTime = new Date(updatedGroup.reachTime);
+      const isActive = !isNaN(reachTime.getTime()) && reachTime >= now;
+      if (isActive) {
+        setActiveGroups((prev) => {
+          const updatedGroups = prev.map(g => g._id === updatedGroup._id ? updatedGroup : g);
+          if (!updatedGroups.some(g => g._id === updatedGroup._id)) {
+            updatedGroups.push(updatedGroup);
+          }
+          return updatedGroups;
+        });
+        setArchivedGroups((prev) => prev.filter(g => g._id !== updatedGroup._id));
+      } else {
+        setArchivedGroups((prev) => {
+          const updatedGroups = prev.map(g => g._id === updatedGroup._id ? updatedGroup : g);
+          if (!updatedGroups.some(g => g._id === updatedGroup._id)) {
+            updatedGroups.push(updatedGroup);
+          }
+          return updatedGroups;
+        });
+        setActiveGroups((prev) => prev.filter(g => g._id !== updatedGroup._id));
+      }
     });
 
     return () => {
@@ -89,11 +125,9 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
         reachTime,
       });
       const newGroup = res.data;
-      console.log("Newly created group:", newGroup);
       await fetchGroups();
       return newGroup;
     } catch (err) {
-      console.error("Failed to create group:", err);
       throw err;
     }
   };
@@ -108,7 +142,6 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
         clerkAvatar: user.imageUrl || "",
       });
       const joinedGroup = res.data;
-      console.log("Joined group:", joinedGroup);
       await fetchGroups();
       return joinedGroup;
     } catch (err) {
@@ -132,14 +165,18 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getGroup = (id: string): Group | undefined => groups.find((g) => g._id === id);
+  const getGroup = (id: string): Group | undefined => {
+    return [...groups, ...activeGroups, ...archivedGroups].find((g) => g._id === id);
+  };
 
   const updateGroupSettings = async (id: string, settings: Partial<Group>): Promise<void> => {
     setGroups((prev) => prev.map((g) => (g._id === id ? { ...g, ...settings } : g)));
+    setActiveGroups((prev) => prev.map((g) => (g._id === id ? { ...g, ...settings } : g)));
+    setArchivedGroups((prev) => prev.map((g) => (g._id === id ? { ...g, ...settings } : g)));
   };
 
   return (
-    <GroupContext.Provider value={{ groups, createGroup, joinGroup, deleteGroup, getGroup, updateGroupSettings }}>
+    <GroupContext.Provider value={{ groups, createGroup, joinGroup, deleteGroup, getGroup, updateGroupSettings, activeGroups, archivedGroups }}>
       {children}
     </GroupContext.Provider>
   );

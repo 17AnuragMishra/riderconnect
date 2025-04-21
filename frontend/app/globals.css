@@ -183,6 +183,21 @@
   50% { transform: translateY(-10px); }
 }
 
+@keyframes pulse-gentle {
+  0%, 100% { 
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 2s ease-in-out infinite;
+}
+
 @keyframes pulse-glow {
   0%, 100% { 
     box-shadow: 0 0 8px hsl(var(--primary) / 0.3); 
@@ -204,6 +219,10 @@
 }
 
 .timeline-node-pulse {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
   animation: pulse-glow 3s ease-in-out infinite;
 }
 
@@ -261,10 +280,15 @@
 /* Touch device optimizations */
 @media (pointer: coarse) {
   /* Touch-optimized elements */
-  .touch-optimized {
+.touch-optimized {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+    height: 100%;
+    width: 100%;
   }
   
   /* Global touch highlight removal */
@@ -397,5 +421,109 @@
   .feature-card-hover:hover,
   .feature-card-hover:active {
     transform: none;
+  }
+}
+
+/* Leaflet specific mobile fixes */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  touch-action: none;
+}
+
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+  border: 2px solid rgba(0,0,0,0.2);
+  background-clip: padding-box;
+}
+
+.leaflet-control-container .leaflet-control {
+  margin: 0.5rem !important;
+}
+
+/* Ensure proper z-index stacking for map elements */
+.leaflet-map-pane {
+  z-index: 2;
+}
+
+.leaflet-tile-pane {
+  z-index: 1;
+}
+
+.leaflet-overlay-pane {
+  z-index: 3;
+}
+
+.leaflet-marker-pane {
+  z-index: 4;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 5;
+}
+
+.leaflet-popup-pane {
+  z-index: 6;
+}
+
+.leaflet-control {
+  z-index: 7;
+}
+
+/* Improve touch interaction for markers */
+.leaflet-marker-icon {
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure proper popup positioning on mobile */
+.leaflet-popup {
+  margin-bottom: 0;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px hsl(var(--primary) / 0.1);
+}
+
+/* Optimize touch areas for controls */
+.leaflet-touch .leaflet-control-zoom a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+}
+
+/* Map container specific styles */
+.map-container {
+  position: relative;
+  width: 100%;
+  min-height: 300px; /* Base minimum height */
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+/* Mobile-specific map container styles */
+@media (max-width: 768px) {
+  .map-container {
+    height: calc(100vh - 200px); /* Adjust based on your layout */
+    min-height: 300px;
+  }
+  
+  /* Ensure map container fills available space */
+  .leaflet-container {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+}
+
+/* Tablet and larger screens */
+@media (min-width: 769px) {
+  .map-container {
+    height: 60vh;
   }
 }

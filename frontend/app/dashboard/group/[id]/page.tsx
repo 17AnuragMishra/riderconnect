@@ -147,16 +147,13 @@ export default function GroupPage() {
 
     const fetchGroup = async () => {
       setIsFetching(true);
-      console.log("Fetching group with ID:", groupId);
       try {
         let fetchedGroup: Group | null = getGroup(groupId);
-        console.log("Group from context:", fetchedGroup);
         if (!fetchedGroup) {
           const res = await axios.get(
             `${API_BASE_URL}/groups?clerkId=${user.id}`
           );
           fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
-          console.log("Found group from backend:", fetchedGroup);
         }
         if (!fetchedGroup) {
           toast({
@@ -187,7 +184,6 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
-    console.log("Current user clerkId:", user.id);
     if (activeTab === "chat") {
       socket.emit("viewingGroup", { groupId, clerkId: user.id });
     }
@@ -216,33 +212,19 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
-
-    socket.on(
-      "groupLocations",
-      (locations: { clerkId: string; lat: number; lng: number }[]) => {
-        console.log("Received groupLocations:", locations);
-        const locationMap = new Map();
-        locations.forEach((loc) => {
-          if (loc.lat && loc.lng) {
-            locationMap.set(loc.clerkId, { lat: loc.lat, lng: loc.lng });
-          }
-        });
-        setGroupLocations(locationMap);
-      }
-    );
-
-    socket.on(
-      "locationUpdate",
-      (location: { clerkId: string; lat: number; lng: number }) => {
-        console.log("Received locationUpdate:", location);
-        if (location.lat && location.lng) {
-          setGroupLocations((prev) =>
-            new Map(prev).set(location.clerkId, {
-              lat: location.lat,
-              lng: location.lng,
-            })
-          );
+    socket.on("groupLocations", (locations: { clerkId: string; lat: number; lng: number }[]) => {
+      const locationMap = new Map();
+      locations.forEach((loc) => {
+        if (loc.lat && loc.lng) {
+          locationMap.set(loc.clerkId, { lat: loc.lat, lng: loc.lng });
         }
+      });
+      setGroupLocations(locationMap);
+    });
+
+    socket.on("locationUpdate", (location: { clerkId: string; lat: number; lng: number }) => {
+      if (location.lat && location.lng) {
+        setGroupLocations((prev) => new Map(prev).set(location.clerkId, { lat: location.lat, lng: location.lng }));
       }
     );
 
@@ -316,12 +298,10 @@ export default function GroupPage() {
       socket.emit("requestStatusUpdate", { groupId });
       const heartbeatInterval = setInterval(() => {
         socket.emit("heartbeat", { clerkId: user.id, groupId });
-        console.log("Sent heartbeat for", user.id);
       }, 10000);
 
       const retryInterval = setInterval(() => {
         if (!statusReceived) {
-          console.log("Retrying requestStatusUpdate");
           socket.emit("requestStatusUpdate", { groupId });
         } else {
           clearInterval(retryInterval);
@@ -353,11 +333,6 @@ export default function GroupPage() {
 
     socket.on("memberStatusUpdate", (updatedMembers: Member[]) => {
       if (Array.isArray(updatedMembers)) {
-        updatedMembers.forEach((m) => {
-          console.log(
-            `Member ${m.name} (clerkId: ${m.clerkId}): isOnline=${m.isOnline}`
-          );
-        });
         setGroup((prevGroup) => {
           if (!prevGroup) return prevGroup;
           const newMembers = updatedMembers.map((m) => ({ ...m }));
@@ -805,9 +780,6 @@ export default function GroupPage() {
                     key={group.members.map((m) => m.clerkId).join()}
                   >
                     {group.members.map((member: Member) => {
-                      console.log(
-                        `Rendering member ${member.name}: isOnline=${member.isOnline}`
-                      );
                       return (
                         <Card key={member.clerkId}>
                           <CardContent className="p-4">

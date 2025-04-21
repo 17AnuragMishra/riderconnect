@@ -8,10 +8,15 @@ import {
   Popup,
   Polyline,
   useMap,
+  ZoomControl,
+  ScaleControl,
+  LayersControl,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useUser } from "@clerk/nextjs";
 import L from "leaflet";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 interface MapComponentProps {
   location: { latitude: number; longitude: number };
@@ -85,10 +90,12 @@ export default function MapComponent({
 }: MapComponentProps) {
   const { user } = useUser();
   const userPos: LatLng = [location.latitude, location.longitude];
-
+  
   const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [srcCoords, setSrcCoords] = useState<LatLng | null>(null);
   const [dstCoords, setDstCoords] = useState<LatLng | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadingProgress, setLoadingProgress] = useState<number>(0);
 
   async function fetchCoordinates(place: string): Promise<LatLng | null> {
     const res = await fetch(
@@ -116,23 +123,135 @@ export default function MapComponent({
 
   useEffect(() => {
     async function getRoute() {
-      const from = await fetchCoordinates(source);
-      const to = await fetchCoordinates(destination);
-      if (from && to) {
-        setSrcCoords(from);
-        setDstCoords(to);
-        await fetchRoute(from, to);
+      setIsLoading(true);
+      setLoadingProgress(10);
+      
+      try {
+        const from = await fetchCoordinates(source);
+        setLoadingProgress(40);
+        
+        const to = await fetchCoordinates(destination);
+        setLoadingProgress(70);
+        
+        if (from && to) {
+          setSrcCoords(from);
+          setDstCoords(to);
+          await fetchRoute(from, to);
+          setLoadingProgress(100);
+        }
+      } catch (error) {
+        console.error("Error loading map data:", error);
+      } finally {
+        // Slight delay to show the completed progress before hiding
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 500);
       }
     }
     getRoute();
   }, [source, destination]);
 
+  const LoadingOverlay = () => (
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm dark:bg-background/90 bg-grid-pattern" style={{ height: '100%', width: '100%' }}>
+      <div className="animate-pulse-gentle flex flex-col items-center space-y-4 p-6 max-w-xs w-full">
+        <div className="shadow-glow rounded-lg bg-card p-4 w-full">
+          <div className="text-center mb-3 text-sm font-medium text-primary">Loading Map Data</div>
+          <Progress value={loadingProgress} className="h-2 w-full" />
+          <div className="mt-2 text-xs text-muted-foreground text-center">
+            {loadingProgress < 100 ? 'Fetching route information...' : 'Rendering map...'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  // Force Leaflet to update after container size changes
+  useEffect(() => {
+    const handleResize = () => {
+      window.dispatchEvent(new Event('resize'));
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Trigger resize event after component mounts to ensure map renders properly
+    const timeoutId = setTimeout(handleResize, 100);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Define different map tile layers
+  const mapLayers = {
+    standard: {
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    },
+    satellite: {
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      attribution: '© <a href="https://www.esri.com/">Esri</a>'
+    },
+    terrain: {
+      url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      attribution: '© <a href="https://opentopomap.org">OpenTopoMap</a>'
+    }
+  };
+
   return (
-    <MapContainer center={userPos} scrollWheelZoom={true} style={{ height: "350px", width: "100%" }}>
-      <TileLayer
-        attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <div className="relative w-full min-h-[350px] xs:min-h-[450px] sm:min-h-[500px] md:min-h-[70vh] lg:min-h-[70vh]">
+      <div 
+        className={cn(
+          "map-container h-full transition-all duration-300 ease-in-out relative shadow-md rounded-lg overflow-hidden",
+          "bg-muted/30 dark:bg-muted/10",
+          "touch-optimized"
+        )}
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 'inherit'
+        }}
+      >
+        <MapContainer 
+          center={userPos} 
+          scrollWheelZoom={true} 
+          className="h-full w-full z-10"
+          zoomAnimation={true}
+          fadeAnimation={true}
+          markerZoomAnimation={true}
+          zoomControl={false} // Disable default zoom control so we can position it better
+          style={{ 
+            height: '100%', 
+            width: '100%', 
+            minHeight: 'inherit',
+            position: 'relative' 
+          }}
+        >
+          {/* Add map controls */}
+          <ZoomControl position="topright" />
+          <ScaleControl position="bottomright" metric={true} imperial={false} />
+          
+          {/* Layer control to switch between different map styles */}
+          <LayersControl position="topright">
+            <LayersControl.BaseLayer checked name="Standard">
+              <TileLayer
+                attribution={mapLayers.standard.attribution}
+                url={mapLayers.standard.url}
+              />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Satellite">
+              <TileLayer
+                attribution={mapLayers.satellite.attribution}
+                url={mapLayers.satellite.url}
+              />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Terrain">
+              <TileLayer
+                attribution={mapLayers.terrain.attribution}
+                url={mapLayers.terrain.url}
+              />
+            </LayersControl.BaseLayer>
+          </LayersControl>
       <MapUpdater center={userPos} locations={groupLocations} />
 
       {srcCoords && (
@@ -177,5 +296,9 @@ export default function MapComponent({
         </Marker>
       ))}
     </MapContainer>
+    
+    {isLoading && <LoadingOverlay />}
+      </div>
+    </div>
   );
 }
