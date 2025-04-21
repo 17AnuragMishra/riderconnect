@@ -596,13 +596,14 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">
               Upcoming Group Rides
-              <a
-                href="/groups"
-                className="text-xs ml-2 inline-block transition-all duration-300 hover:translate-y-[-2px] hover:underline"
-                style={{ color: "rgb(42 140 238)" }}
-              >
-                View all Group
-              </a>
+              <Link href='/groups'>
+                <p
+                  className="text-xs ml-2 inline-block transition-all duration-300 hover:translate-y-[-2px] hover:underline"
+                  style={{ color: "rgb(42 140 238)" }}
+                >
+                  View all Group
+                </p>
+              </Link>
             </h2>
 
             <div className="text-sm text-muted-foreground">
