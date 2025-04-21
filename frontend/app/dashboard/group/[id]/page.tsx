@@ -226,7 +226,7 @@ export default function GroupPage() {
       if (location.lat && location.lng) {
         setGroupLocations((prev) => new Map(prev).set(location.clerkId, { lat: location.lat, lng: location.lng }));
       }
-    );
+  });
 
     const toastCooldown = new Map();
     socket.on("distanceAlert", ({ clerkId, otherClerkId, distance }) => {
