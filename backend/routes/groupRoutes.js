@@ -20,6 +20,7 @@ router.post('/create', async (req, res) => {
       members: [{ clerkId, name: clerkName }],
       createdBy: clerkId,
     });
+
     await group.save();
     const io = req.app.get('io');
     io.emit('groupUpdate', group);
@@ -28,6 +29,7 @@ router.post('/create', async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+
 
 router.post('/join', async (req, res) => {
   const { code, clerkId, clerkName, clerkAvatar } = req.body;
@@ -91,6 +93,33 @@ router.get('/', async (req, res) => {
   try {
     const groups = await Group.find({ 'members.clerkId': clerkId });
     res.json(groups);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/active', async (req, res) => {
+  try {
+    const clerkId = req.query.clerkId;
+    if (!clerkId) {
+      return res.status(400).json({ error: 'clerkId missing' });
+    }
+    const now = new Date();
+    const groups = await Group.find({'members.clerkId':clerkId,reachTime:{$gte:now}});
+    res.json({data:groups});
+  } catch (err) {
+    res.status(500).json({ error: err.message});
+  }
+});
+router.get('/archive', async (req, res) => {
+  try {
+    const clerkId = req.query.clerkId;
+    if (!clerkId) {
+      return res.status(400).json({ error: 'clerkId missing' });
+    }
+    const now = new Date();
+    const groups = await Group.find({'members.clerkId': clerkId,reachTime:{$lt:now}});
+    res.json({ data:groups});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

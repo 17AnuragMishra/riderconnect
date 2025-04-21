@@ -18,17 +18,18 @@ interface Group {
   name: string;
   code: string;
   source: string;
-  destination: string;
   startTime: string;
   reachTime: string;
+  destination: string;
   members: Member[];
+  isActive: boolean;
   createdBy: string;
   createdAt: string;
 }
 
 const GroupContext = createContext<any>(null);
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = 'http://192.168.1.51:5000';
 const socket: Socket = io(API_BASE_URL, { autoConnect: false });
 
 export function GroupProvider({ children }: { children: React.ReactNode }) {

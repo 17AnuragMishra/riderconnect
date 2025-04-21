@@ -66,6 +66,7 @@ interface Group {
   reachTime: string;
   destination: string;
   members: Member[];
+  isActive: boolean;
   createdBy: string;
   createdAt: string;
 }
@@ -87,7 +88,9 @@ export default function Dashboard() {
   const [reachDateTime, setReachDateTime] = useState("");
   const [validationErrors, setValidationErrors] = useState<{ startTime?: string; reachTime?: string }>({});
   const [suggestedSource, setSuggestedSource] = useState<PlaceSuggestion[]>([]);
-  const [suggestedDestination, setSuggestedDestination] = useState<PlaceSuggestion[]>([]);
+  const [suggestedDestination, setSuggestedDestination] = useState<
+    PlaceSuggestion[]
+  >([]);
   const [inviteCode, setInviteCode] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -95,7 +98,7 @@ export default function Dashboard() {
   const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
-    if (isLoaded && !user) redirect("/sign-in");
+    if (isLoaded && !user) redirect("/sign-in")
   }, [isLoaded, user]);
 
   const validateDateTimes = () => {
@@ -231,7 +234,10 @@ export default function Dashboard() {
   };
 
   const getTotalMembers = () => {
-    return groups.reduce((total: number, group: Group) => total + group.members.length, 0);
+    return groups.reduce(
+      (total: number, group: Group) => total + group.members.length,
+      0
+    );
   };
 
   const getActiveRides = () => {
@@ -250,7 +256,6 @@ export default function Dashboard() {
   };
 
   if (!isLoaded) return <DashboardSkeleton />;
-
   const fetchSuggestion = async (place: string, sourceType: string) => {
     if (place.length < 2) return;
     try {
@@ -296,7 +301,9 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Rides</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Rides
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center">
@@ -307,14 +314,18 @@ export default function Dashboard() {
                     <div className="text-2xl font-bold">
                       <AnimatedValue value={groups.length} />
                     </div>
-                    <p className="text-xs text-muted-foreground">Active group rides</p>
+                    <p className="text-xs text-muted-foreground">
+                      Active group rides
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </StatsCard>
             <StatsCard>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Distance</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Distance
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center">
@@ -325,14 +336,18 @@ export default function Dashboard() {
                     <div className="text-2xl font-bold">
                       <AnimatedValue value={groups.length * 245} suffix=" km" />
                     </div>
-                    <p className="text-xs text-muted-foreground">Across all rides</p>
+                    <p className="text-xs text-muted-foreground">
+                      Across all rides
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </StatsCard>
             <StatsCard>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Fellow Riders</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Fellow Riders
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center">
@@ -343,14 +358,18 @@ export default function Dashboard() {
                     <div className="text-2xl font-bold">
                       <AnimatedValue value={getTotalMembers()} />
                     </div>
-                    <p className="text-xs text-muted-foreground">Connected riders</p>
+                    <p className="text-xs text-muted-foreground">
+                      Connected riders
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </StatsCard>
             <StatsCard>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active Now</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Active Now
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center">
@@ -361,222 +380,261 @@ export default function Dashboard() {
                     <div className="text-2xl font-bold">
                       <AnimatedValue value={getActiveRides()} />
                     </div>
-                    <p className="text-xs text-muted-foreground">Ongoing rides</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ongoing rides
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </StatsCard>
           </div>
         </AnimatedSection>
-        
+
         {/* Action Cards Section */}
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <CreateGroupCard>
-                <CardContent className="flex flex-col items-center justify-center h-[200px] gap-4">
-                  <IconContainer className="bg-white/20 p-3">
-                    <Plus className="h-8 w-8" />
-                  </IconContainer>
-                  <p className="font-medium text-lg">Create New Group Ride</p>
-                  <p className="text-white/80 text-sm text-center">Start a new journey with friends</p>
-                </CardContent>
-              </CreateGroupCard>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create a New Group Ride</DialogTitle>
-                <DialogDescription>
-                  Set up your ride and invite others.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="group-name">Group Name</Label>
-                  <Input
-                    id="group-name"
-                    placeholder="e.g., Road Trip 2025"
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="source">Source</Label>
-                  <Input
-                    id="source"
-                    placeholder="e.g., New York"
-                    value={source}
-                    onChange={(e) => {
-                      setSource(e.target.value);
-                      fetchSuggestion(e.target.value, e.target.id);
-                    }}
-                    required
-                  />
-                  {suggestedSource.length > 0 && source.length > 0 && (
-                    <SuggestionList>
-                      {suggestedSource.map((place, index) => (
-                        <div
-                          className='list p-1'
-                          key={index}
-                          onClick={() => {
-                            setSource(place.display_name)
-                            setSuggestedSource([]);
-                          }}
-                        >
-                          {place.display_name}
-                        </div>
-                      ))}
-                    </SuggestionList>
-                  )}
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="destination">Destination</Label>
-                  <Input
-                    id="destination"
-                    placeholder="e.g., Boston"
-                    value={destination}
-                    onChange={(e) => {
-                      setDestination(e.target.value);
-                      fetchSuggestion(e.target.value, e.target.id);
-                    }}
-                    required
-                  />
-                  {suggestedDestination.length > 0 && destination.length > 0 && (
-                    <SuggestionList>
-                      {suggestedDestination.map((place, index) => (
-                        <div 
-                          className='list p-1'
-                          key={index}
-                          onClick={() => {
-                            setDestination(place.display_name);
-                            setSuggestedDestination([]);
-                          }}
-                        >
-                          {place.display_name}
-                        </div>
-                      ))}
-                    </SuggestionList>
-                  )}
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="startDateTime">Start Date and Time</Label>
-                  <Input
-                    id="startDateTime"
-                    type="datetime-local"
-                    value={startDateTime}
-                    onChange={(e) => {
-                      setStartDateTime(e.target.value);
-                      // Clear validation error when user changes the input
-                      if (validationErrors.startTime) {
-                        setValidationErrors({...validationErrors, startTime: undefined});
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <CreateGroupCard>
+                  <CardContent className="flex flex-col items-center justify-center h-[200px] gap-4">
+                    <IconContainer className="bg-white/20 p-3">
+                      <Plus className="h-8 w-8" />
+                    </IconContainer>
+                    <p className="font-medium text-lg">Create New Group Ride</p>
+                    <p className="text-white/80 text-sm text-center">
+                      Start a new journey with friends
+                    </p>
+                  </CardContent>
+                </CreateGroupCard>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create a New Group Ride</DialogTitle>
+                  <DialogDescription>
+                    Set up your ride and invite others.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="group-name">Group Name</Label>
+                    <Input
+                      id="group-name"
+                      placeholder="e.g., Road Trip 2025"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="source">Source</Label>
+                    <Input
+                      id="source"
+                      placeholder="e.g., New York"
+                      value={source}
+                      onChange={(e) => {
+                        setSource(e.target.value);
+                        fetchSuggestion(e.target.value, e.target.id);
+                      }}
+                      required
+                    />
+                    {suggestedSource.length > 0 && source.length > 0 && (
+                      <SuggestionList>
+                        {suggestedSource.map((place, index) => (
+                          <div
+                            className="list p-1"
+                            key={index}
+                            onClick={() => {
+                              setSource(place.display_name);
+                              setSuggestedSource([]);
+                            }}
+                          >
+                            {place.display_name}
+                          </div>
+                        ))}
+                      </SuggestionList>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="destination">Destination</Label>
+                    <Input
+                      id="destination"
+                      placeholder="e.g., Boston"
+                      value={destination}
+                      onChange={(e) => {
+                        setDestination(e.target.value);
+                        fetchSuggestion(e.target.value, e.target.id);
+                      }}
+                      required
+                    />
+                    {suggestedDestination.length > 0 &&
+                      destination.length > 0 && (
+                        <SuggestionList>
+                          {suggestedDestination.map((place, index) => (
+                            <div
+                              className="list p-1"
+                              key={index}
+                              onClick={() => {
+                                setDestination(place.display_name);
+                                setSuggestedDestination([]);
+                              }}
+                            >
+                              {place.display_name}
+                            </div>
+                          ))}
+                        </SuggestionList>
+                      )}
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="startDateTime">Start Date and Time</Label>
+                    <Input
+                      id="startDateTime"
+                      type="datetime-local"
+                      value={startDateTime}
+                      onChange={(e) => {
+                        setStartDateTime(e.target.value);
+                        // Clear validation error when user changes the input
+                        if (validationErrors.startTime) {
+                          setValidationErrors({
+                            ...validationErrors,
+                            startTime: undefined,
+                          });
+                        }
+                      }}
+                      className={
+                        validationErrors.startTime ? "border-red-500" : ""
                       }
-                    }}
-                    className={validationErrors.startTime ? "border-red-500" : ""}
-                    required
-                  />
-                  {validationErrors.startTime && (
-                    <p className="text-sm text-red-500">{validationErrors.startTime}</p>
-                  )}
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="reachDateTime">Reach Date and Time</Label>
-                  <Input
-                    id="reachDateTime"
-                    type="datetime-local"
-                    value={reachDateTime}
-                    onChange={(e) => {
-                      setReachDateTime(e.target.value);
-                      // Clear validation error when user changes the input
-                      if (validationErrors.reachTime) {
-                        setValidationErrors({...validationErrors, reachTime: undefined});
+                      required
+                    />
+                    {validationErrors.startTime && (
+                      <p className="text-sm text-red-500">
+                        {validationErrors.startTime}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="reachDateTime">Reach Date and Time</Label>
+                    <Input
+                      id="reachDateTime"
+                      type="datetime-local"
+                      value={reachDateTime}
+                      onChange={(e) => {
+                        setReachDateTime(e.target.value);
+                        // Clear validation error when user changes the input
+                        if (validationErrors.reachTime) {
+                          setValidationErrors({
+                            ...validationErrors,
+                            reachTime: undefined,
+                          });
+                        }
+                      }}
+                      className={
+                        validationErrors.reachTime ? "border-red-500" : ""
                       }
-                    }}
-                    className={validationErrors.reachTime ? "border-red-500" : ""}
-                    required
-                  />
-                  {validationErrors.reachTime && (
-                    <p className="text-sm text-red-500">{validationErrors.reachTime}</p>
-                  )}
+                      required
+                    />
+                    {validationErrors.reachTime && (
+                      <p className="text-sm text-red-500">
+                        {validationErrors.reachTime}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreateGroup} disabled={isCreating}>
-                  {isCreating ? "Creating..." : "Create Group"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
-            <DialogTrigger asChild>
-              <JoinGroupCard>
-                <CardContent className="flex flex-col items-center justify-center h-[200px] gap-4">
-                  <IconContainer className="bg-white/20 p-3">
-                    <Users className="h-8 w-8" />
-                  </IconContainer>
-                  <p className="font-medium text-lg">Join Existing Group</p>
-                  <p className="text-white/80 text-sm text-center">Connect with other riders using a code</p>
-                </CardContent>
-              </JoinGroupCard>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Join a Group Ride</DialogTitle>
-                <DialogDescription>
-                  Enter the invite code to join.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="invite-code">Invite Code</Label>
-                  <Input
-                    id="invite-code"
-                    placeholder="e.g., ABC123"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                  />
+                <DialogFooter>
+                  <Button onClick={handleCreateGroup} disabled={isCreating}>
+                    {isCreating ? "Creating..." : "Create Group"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
+              <DialogTrigger asChild>
+                <JoinGroupCard>
+                  <CardContent className="flex flex-col items-center justify-center h-[200px] gap-4">
+                    <IconContainer className="bg-white/20 p-3">
+                      <Users className="h-8 w-8" />
+                    </IconContainer>
+                    <p className="font-medium text-lg">Join Existing Group</p>
+                    <p className="text-white/80 text-sm text-center">
+                      Connect with other riders using a code
+                    </p>
+                  </CardContent>
+                </JoinGroupCard>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Join a Group Ride</DialogTitle>
+                  <DialogDescription>
+                    Enter the invite code to join.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="invite-code">Invite Code</Label>
+                    <Input
+                      id="invite-code"
+                      placeholder="e.g., ABC123"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleJoinGroup} disabled={isJoining}>
-                  {isJoining ? "Joining..." : "Join Group"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button onClick={handleJoinGroup} disabled={isJoining}>
+                    {isJoining ? "Joining..." : "Join Group"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </section>
-        
+
         {/* Groups Section */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Your Group Rides</h2>
+            <h2 className="text-xl font-semibold">
+              Upcoming Group Rides
+              <a
+                href="/groups"
+                className="text-xs ml-2 inline-block transition-all duration-300 hover:translate-y-[-2px] hover:underline"
+                style={{ color: "rgb(42 140 238)" }}
+              >
+                View all Group
+              </a>
+            </h2>
+
             <div className="text-sm text-muted-foreground">
-              {groups.length > 0 ? `${groups.length} ${groups.length === 1 ? 'group' : 'groups'}` : ''}
+              {groups.length > 0
+                ? `${groups.length} ${groups.length === 1 ? "group" : "groups"}`
+                : ""}
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {groups.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center p-8 border border-dashed rounded-lg bg-muted/30 text-center transition-all hover:bg-muted/40">
                 <div className="mb-4 opacity-70">
                   <Users className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-muted-foreground font-medium">No groups yet</p>
+                  <p className="text-muted-foreground font-medium">
+                    No groups yet
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">Create a new group or join one using an invite code</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create a new group or join one using an invite code
+                </p>
               </div>
             ) : (
-              groups.map((group: Group) => (
+              groups.slice(0, 3).map((group: Group) => (
                 <GroupCard key={group._id}>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <GradientBorder>
                         <div className="px-2 py-1">
-                          <CardTitle className="text-lg font-semibold">{group.name}</CardTitle>
+                          <CardTitle className="text-lg font-semibold">
+                            {group.name}
+                          </CardTitle>
                         </div>
                       </GradientBorder>
                       <AlertDialog>
@@ -611,7 +669,11 @@ export default function Dashboard() {
                       </AlertDialog>
                     </div>
                     <CardDescription>
-                      Created {new Date(group.createdAt || Date.now()).toLocaleDateString()} • {group.code}
+                      Created{" "}
+                      {new Date(
+                        group.createdAt || Date.now()
+                      ).toLocaleDateString()}{" "}
+                      • {group.code}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -620,49 +682,69 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{group.source}</span>
+                          <span className="text-muted-foreground">
+                            {group.source}
+                          </span>
                           <ArrowRight className="h-3 w-3" />
-                          <span className="text-muted-foreground">{group.destination}</span>
+                          <span className="text-muted-foreground">
+                            {group.destination}
+                          </span>
                         </div>
                       </div>
-                      
+
                       {/* Stats */}
                       {(() => {
-                        const metrics = getGroupMetrics(group.source, group.destination);
+                        const metrics = getGroupMetrics(
+                          group.source,
+                          group.destination
+                        );
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                              <p className="text-muted-foreground">Estimated Distance</p>
-                              <p className="font-medium">{metrics.distance} km</p>
+                              <p className="text-muted-foreground">
+                                Estimated Distance
+                              </p>
+                              <p className="font-medium">
+                                {metrics.distance} km
+                              </p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">Est. Duration</p>
+                              <p className="text-muted-foreground">
+                                Est. Duration
+                              </p>
                               <p className="font-medium">
-                                {metrics.duration.hours}h {metrics.duration.minutes}m
+                                {metrics.duration.hours}h{" "}
+                                {metrics.duration.minutes}m
                               </p>
                             </div>
                           </div>
                         );
                       })()}
-                      
+
                       {/* Members section */}
                       <div className="flex items-center justify-between">
                         <div className="flex -space-x-2">
-                          {group.members.slice(0, 4).map((member: Member, i: number) => (
-                            <TooltipProvider key={i}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="h-8 w-8 rounded-full bg-primary/15 border border-background flex items-center justify-center text-xs font-medium shadow-sm transition-all hover:scale-110">
-                                    {member.name.charAt(0)}
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{member.name}</p>
-                                  {member.isOnline && <span className="ml-2 text-green-500">●</span>}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ))}
+                          {group.members
+                            .slice(0, 4)
+                            .map((member: Member, i: number) => (
+                              <TooltipProvider key={i}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="h-8 w-8 rounded-full bg-primary/15 border border-background flex items-center justify-center text-xs font-medium shadow-sm transition-all hover:scale-110">
+                                      {member.name.charAt(0)}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{member.name}</p>
+                                    {member.isOnline && (
+                                      <span className="ml-2 text-green-500">
+                                        ●
+                                      </span>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ))}
                           {group.members.length > 4 && (
                             <TooltipProvider>
                               <Tooltip>
@@ -679,13 +761,17 @@ export default function Dashboard() {
                           )}
                         </div>
                         <Badge variant="secondary">
-                          {group.members.length} {group.members.length === 1 ? 'member' : 'members'}
+                          {group.members.length}{" "}
+                          {group.members.length === 1 ? "member" : "members"}
                         </Badge>
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter className="pt-2">
-                    <Link href={`/dashboard/group/${group._id}`} className="w-full">
+                    <Link
+                      href={`/dashboard/group/${group._id}`}
+                      className="w-full"
+                    >
                       <Button variant="outline" size="sm" className="w-full">
                         <span>View Group</span>
                         <ArrowRight className="ml-2 h-4 w-4" />
@@ -721,7 +807,11 @@ const pulse = keyframes`
 // Styled components for cards
 const CreateGroupCard = styled(Card)`
   cursor: pointer;
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--accent)) 100%
+  );
   border: none;
   transition: all 0.3s ease;
   overflow: hidden;
@@ -734,7 +824,7 @@ const CreateGroupCard = styled(Card)`
   }
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -755,7 +845,11 @@ const CreateGroupCard = styled(Card)`
 `;
 const JoinGroupCard = styled(Card)`
   cursor: pointer;
-  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--accent)) 0%,
+    hsl(var(--primary)) 100%
+  );
   border: none;
   transition: all 0.3s ease;
   overflow: hidden;
@@ -769,7 +863,7 @@ const JoinGroupCard = styled(Card)`
   }
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -794,21 +888,21 @@ const GroupCard = styled(Card)`
   background: hsl(var(--card));
   animation: ${fadeIn} 0.5s ease;
   border-radius: var(--radius);
-  
+
   &:hover {
     transform: translateY(-3px);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-    border-color: hsl(var(--accent)/0.2);
+    border-color: hsl(var(--accent) / 0.2);
   }
 `;
 
 const ActionButton = styled(Button)`
   transition: all 0.2s ease;
-  
+
   &:hover {
     transform: scale(1.03);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
@@ -820,7 +914,7 @@ const IconContainer = styled.div`
   justify-content: center;
   border-radius: 50%;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.2); 
+  background: rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
   backdrop-filter: blur(4px);
   &:hover {
@@ -845,18 +939,18 @@ const SuggestionList = styled.div`
   z-index: 10;
   background-color: hsl(var(--background));
   animation: ${fadeIn} 0.2s ease;
-  
+
   .list {
     padding: 0.75rem 1rem;
     transition: all 0.2s ease;
     border-bottom: 1px solid hsl(var(--border));
     cursor: pointer;
     font-size: 0.875rem;
-    
+
     &:last-child {
       border-bottom: none;
     }
-    
+
     &:hover {
       background-color: hsl(var(--muted));
       color: hsl(var(--accent));
@@ -869,11 +963,11 @@ const StatsCard = styled(Card)`
   transition: all 0.3s ease;
   border: 1px solid hsl(var(--border));
   background: hsl(var(--card));
-  
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-    border-color: hsl(var(--accent)/0.2);
+    border-color: hsl(var(--accent) / 0.2);
   }
 `;
 
@@ -886,7 +980,7 @@ const GradientBorder = styled.div`
   padding: 1px;
   border-radius: var(--radius);
   background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-  
+
   > div {
     background: hsl(var(--background));
     border-radius: calc(var(--radius) - 1px);
@@ -907,21 +1001,21 @@ const DashboardSkeleton = () => (
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-4 w-96" />
     </div>
-    
+
     {/* Stats skeleton */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[1, 2, 3, 4].map((i) => (
         <Skeleton key={i} className="h-[120px] rounded-lg" />
       ))}
     </div>
-    
+
     {/* Actions skeleton */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {[1, 2].map((i) => (
         <Skeleton key={i} className="h-[200px] rounded-lg" />
       ))}
     </div>
-    
+
     {/* Groups skeleton */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {[1, 2, 3].map((i) => (
