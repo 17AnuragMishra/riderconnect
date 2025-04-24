@@ -43,8 +43,11 @@ function ChatTab({ groupId, members }: ChatTabProps) {
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+  const [tagging, setTagging] = useState(false);
+  const [space, setSpace] = useState(true);
   const fetchMessages = async (groupId: string): Promise<Message[]> => {
-    const res = await axios.get(`http://localhost:5000/messages/group/${groupId}`);
+    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/messages/group/${groupId}`);
+    console.log(res.data);
     setMessages(res.data.data);
     return res.data.data;
   };
@@ -122,6 +125,21 @@ function ChatTab({ groupId, members }: ChatTabProps) {
     }, 200);
   };
 
+  const checkingMessage = (e: any) => {
+    if (e.target.value === newMessage + "@") {
+      setTagging(true);
+      setNewMessage(e.target.value);
+      setSpace(false);
+    } else {
+      setTagging(false);
+      setNewMessage(e.target.value);
+    }
+  };
+
+  const clickOnMentionName = (name: any) => {
+    setNewMessage((prev) => prev + name + " ");
+    setSpace(true);
+  };
   return (
     <div className="flex flex-col h-[70vh]">
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
@@ -129,7 +147,7 @@ function ChatTab({ groupId, members }: ChatTabProps) {
           const sender =
             message.senderId === "system"
               ? null
-              : members.find((m) => m.clerkId === message.senderId);
+              : members?.find((m) => m.clerkId === message.senderId);
           const isYou = message.senderId === user?.id;
 
           return (
