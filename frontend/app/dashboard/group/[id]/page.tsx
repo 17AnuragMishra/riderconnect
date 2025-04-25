@@ -45,6 +45,7 @@ import { redirect } from "next/navigation";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
 import MapComponent from "@/components/Map";
+import ChatTab from '@/components/Chat/ChatTab';
 import axios from "axios";
 import io from "socket.io-client";
 import { BackgroundBeams } from "@/components/ui/background-beams";
@@ -668,7 +669,7 @@ export default function GroupPage() {
               )}
             </TabsContent>
             <TabsContent value="chat" className="mt-0">
-              <div className="flex flex-col h-[70vh]">
+              {/* <div className="flex flex-col h-[70vh]">
                 <div className="flex-1 overflow-y-auto mb-4 space-y-4">
                   {messages.map((message) => {
                     const isYou = message.senderId === user?.id;
@@ -766,7 +767,8 @@ export default function GroupPage() {
                     </Button>
                   </form>
                 </div>
-              </div>
+              </div> */}
+              <ChatTab members={group.members} groupId={groupId}/>
             </TabsContent>
 
             <TabsContent value="members" className="mt-0">

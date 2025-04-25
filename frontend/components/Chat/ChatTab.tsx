@@ -25,7 +25,7 @@ interface ChatTabProps {
   members?: { clerkId: string; name: string; avatar?: string }[];
 }
 
-const socket: Socket = io("http://localhost:5000", {
+const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL, {
   auth: {
     userId: "clerk id",
   },
@@ -46,7 +46,7 @@ function ChatTab({ groupId, members }: ChatTabProps) {
   const [tagging, setTagging] = useState(false);
   const [space, setSpace] = useState(true);
   const fetchMessages = async (groupId: string): Promise<Message[]> => {
-    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/messages/group/${groupId}`);
+    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/groups/messages/group/${groupId}`);
     console.log(res.data);
     setMessages(res.data.data);
     return res.data.data;
