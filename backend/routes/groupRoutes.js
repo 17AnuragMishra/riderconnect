@@ -86,7 +86,31 @@ router.get('/archive', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+router.patch('/distanceThreshold', async (req, res) => {
+  const { groupId, distanceThreshold, clerkId } = req.body;
+  try {
+    if (!groupId || !distanceThreshold || !clerkId) {
+      return res.status(400).json({ error: 'groupId, distanceThreshold, and clerkId are required' });
+    }
+    if (typeof distanceThreshold !== 'number' || distanceThreshold < 100 || distanceThreshold > 2000) {
+      return res.status(400).json({ error: 'distanceThreshold must be a number between 100 and 2000' });
+    }
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    if (!group.members.some((m) => m.clerkId === clerkId)) {
+      return res.status(403).json({ error: 'Not authorized to update this group' });
+    }
+    group.distanceThreshold = distanceThreshold;
+    await group.save();
+    const io = req.app.get('io');
+    io.to(groupId).emit('groupUpdate', group);
+    res.json({ data: group });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 router.get('/', async (req, res) => {
   const { clerkId } = req.query;
   if (!clerkId) return res.status(400).json({ error: 'clerkId is required' });

@@ -24,6 +24,7 @@ interface Group {
   members: Member[];
   isActive: boolean;
   createdBy: string;
+  distanceThreshold: Number;
   createdAt: string;
 }
 

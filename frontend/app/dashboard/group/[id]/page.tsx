@@ -121,7 +121,8 @@ export default function GroupPage() {
   const [activeTab, setActiveTab] = useState("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [distanceThreshold, setDistanceThreshold] = useState<number>(500);
+  const [distanceThreshold, setDistanceThreshold] = useState(1000);
+  const [originalThreshold, setOriginalThreshold] = useState(1000);
   const [autoNotify, setAutoNotify] = useState(true);
   const [shareLocation, setShareLocation] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -166,7 +167,8 @@ export default function GroupPage() {
           return;
         }
         setGroup(fetchedGroup);
-        setDistanceThreshold(fetchedGroup?.distanceThreshold || 500);
+        setDistanceThreshold(fetchedGroup.distanceThreshold || 1000);
+        setOriginalThreshold(fetchedGroup.distanceThreshold || 1000);
       } catch (err) {
         console.error("Failed to fetch group:", err);
         toast({
@@ -227,7 +229,7 @@ export default function GroupPage() {
       if (location.lat && location.lng) {
         setGroupLocations((prev) => new Map(prev).set(location.clerkId, { lat: location.lat, lng: location.lng }));
       }
-  });
+    });
 
     const toastCooldown = new Map();
     socket.on("distanceAlert", ({ clerkId, otherClerkId, distance }) => {
@@ -415,24 +417,39 @@ export default function GroupPage() {
   }, [user, groupId, group?.name, isLoaded, toast]);
 
   const handleSaveSettings = async () => {
-    if (!group || !groupId) return;
+    if (!user || !group || !groupId) return;
     setIsSaving(true);
     try {
+      const response = await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/groups/distanceThreshold`, {
+        groupId,
+        distanceThreshold,
+        clerkId: user.id,
+      });
+      const updatedGroup = response.data.data;
       await updateGroupSettings(groupId, { distanceThreshold });
+      setGroup(updatedGroup);
+      setOriginalThreshold(distanceThreshold);
+      setSettingsDialogOpen(false);
       toast({
         title: "Success",
-        description: "Group settings updated successfully!",
+        description: `Distance threshold updated to ${distanceThreshold} meters`,
       });
-      setSettingsDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error updating distance threshold:", error);
       toast({
         title: "Error",
-        description: "Failed to update settings",
+        description: error.response?.data?.error || "Failed to update distance threshold",
         variant: "destructive",
       });
+      setDistanceThreshold(originalThreshold); // Revert to original on error
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    setDistanceThreshold(originalThreshold);
+    setSettingsDialogOpen(false);
   };
 
   const copyToClipboard = (text: string, successMessage: string) => {
@@ -611,17 +628,13 @@ export default function GroupPage() {
                       onValueChange={(value) => setDistanceThreshold(value[0])}
                     />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <Label>Share My Location</Label>
-                    <Switch
-                      checked={shareLocation}
-                      onCheckedChange={setShareLocation}
-                    />
-                  </div>
                 </div>
                 <DialogFooter>
                   <Button onClick={handleSaveSettings} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save Settings"}
+                  </Button>
+                  <Button onClick={handleCancel} variant="outline">
+                    Cancel
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -768,7 +781,7 @@ export default function GroupPage() {
                   </form>
                 </div>
               </div> */}
-              <ChatTab members={group.members} groupId={groupId}/>
+              <ChatTab members={group.members} groupId={groupId} />
             </TabsContent>
 
             <TabsContent value="members" className="mt-0">

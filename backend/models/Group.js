@@ -13,6 +13,7 @@ const GroupSchema = new mongoose.Schema({
     avatar: { type: String },
   }],
   createdBy: { type: String, required: true },
+  distanceThreshold: {type: Number, default: 1000}
 }, { timestamps: true });
 
 export default mongoose.models.Group || mongoose.model('Group', GroupSchema);
