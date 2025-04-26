@@ -1,14 +1,13 @@
 "use client";
 
 import "../[id]/chat.css";
-import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Info } from "lucide-react";
+import { Info, MapPin, MessageSquare, Users, Settings, Copy } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -16,7 +15,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
-import dynamic from "next/dynamic";
 import {
   Dialog,
   DialogContent,
@@ -28,24 +26,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import {
-  MapPin,
-  MessageSquare,
-  Users,
-  Settings,
-  Copy,
-  Send,
-  Wifi,
-  WifiOff,
-  WifiHighIcon,
-} from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { redirect } from "next/navigation";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
 import MapComponent from "@/components/Map";
-import ChatTab from '@/components/Chat/ChatTab';
+import ChatTab from "@/components/Chat/ChatTab";
+import MemberTab from "@/components/Member/MemberTab";
 import axios from "axios";
 import io from "socket.io-client";
 import { BackgroundBeams } from "@/components/ui/background-beams";
@@ -88,15 +74,8 @@ interface Group {
   distanceThreshold?: number;
 }
 
-export interface Notifications {
-  heading: string;
-  message: string;
-  numberOfMessage: Int16Array;
-  readState: boolean;
-}
-
 export default function GroupPage() {
-  const { user, isLoaded, isSignedIn } = useUser();
+  const { user, isLoaded } = useUser();
   const params = useParams();
   const router = useRouter();
   const { getGroup, updateGroupSettings } = useGroups();
@@ -106,6 +85,7 @@ export default function GroupPage() {
       ? params.id[0]
       : params.id
     : null;
+
   if (!groupId) {
     toast({
       title: "Error",
@@ -115,20 +95,16 @@ export default function GroupPage() {
     router.push("/dashboard");
     return null;
   }
+
   const [group, setGroup] = useState<Group | null>(null);
   const [isFetching, setIsFetching] = useState(true);
-  const [statusReceived, setStatusReceived] = useState(false);
   const [activeTab, setActiveTab] = useState("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [distanceThreshold, setDistanceThreshold] = useState(1000);
   const [originalThreshold, setOriginalThreshold] = useState(1000);
-  const [autoNotify, setAutoNotify] = useState(true);
   const [shareLocation, setShareLocation] = useState(true);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [tagging, setTagging] = useState(false);
-  const [space, setSpace] = useState(true);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [location, setLocation] = useState<{
@@ -139,10 +115,6 @@ export default function GroupPage() {
     Map<string, { lat: number; lng: number }>
   >(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const initialized = useRef(false);
-  const [open, setOpen] = useState(false);
-
-  const toggleTooltip = () => setOpen(!open);
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -215,6 +187,7 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
+
     socket.on("groupLocations", (locations: { clerkId: string; lat: number; lng: number }[]) => {
       const locationMap = new Map();
       locations.forEach((loc) => {
@@ -261,22 +234,7 @@ export default function GroupPage() {
   }, [user, groupId, isLoaded, group, toast]);
 
   useEffect(() => {
-    if (isLoaded && !user) redirect("/sign-in");
-  }, [isLoaded, user]);
-
-  useEffect(() => {
-    if (isLoaded && !isFetching && group === null) {
-      toast({
-        title: "Error",
-        description: "Group not found",
-        variant: "destructive",
-      });
-      router.push("/dashboard");
-    }
-  }, [isLoaded, isFetching, group, router, toast]);
-
-  useEffect(() => {
-    if (!user || !groupId || initialized.current) return;
+    if (!user || !groupId) return;
 
     const fetchMessages = async () => {
       try {
@@ -303,17 +261,8 @@ export default function GroupPage() {
         socket.emit("heartbeat", { clerkId: user.id, groupId });
       }, 10000);
 
-      const retryInterval = setInterval(() => {
-        if (!statusReceived) {
-          socket.emit("requestStatusUpdate", { groupId });
-        } else {
-          clearInterval(retryInterval);
-        }
-      }, 2000);
-
       socket.on("disconnect", () => {
         clearInterval(heartbeatInterval);
-        clearInterval(retryInterval);
       });
     });
 
@@ -341,7 +290,6 @@ export default function GroupPage() {
           const newMembers = updatedMembers.map((m) => ({ ...m }));
           return { ...prevGroup, members: newMembers };
         });
-        setStatusReceived(true);
       } else {
         socket.emit("requestStatusUpdate", { groupId });
       }
@@ -355,8 +303,6 @@ export default function GroupPage() {
       });
     });
 
-    initialized.current = true;
-
     return () => {
       socket.off("connect");
       socket.off("reconnect");
@@ -366,9 +312,8 @@ export default function GroupPage() {
       socket.off("error");
       socket.off("disconnect");
       socket.disconnect();
-      initialized.current = false;
     };
-  }, [user, groupId, toast, statusReceived]);
+  }, [user, groupId, toast]);
 
   useEffect(() => {
     if (messagesEndRef.current && activeTab === "chat") {
@@ -420,7 +365,7 @@ export default function GroupPage() {
     if (!user || !group || !groupId) return;
     setIsSaving(true);
     try {
-      const response = await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/groups/distanceThreshold`, {
+      const response = await axios.patch(`${API_BASE_URL}/groups/distanceThreshold`, {
         groupId,
         distanceThreshold,
         clerkId: user.id,
@@ -441,7 +386,7 @@ export default function GroupPage() {
         description: error.response?.data?.error || "Failed to update distance threshold",
         variant: "destructive",
       });
-      setDistanceThreshold(originalThreshold); // Revert to original on error
+      setDistanceThreshold(originalThreshold);
     } finally {
       setIsSaving(false);
     }
@@ -464,22 +409,6 @@ export default function GroupPage() {
     );
   };
 
-  const checkingMessage = (e: any) => {
-    if (e.target.value === newMessage + "@") {
-      setTagging(true);
-      setNewMessage(e.target.value);
-      setSpace(false);
-    } else {
-      setTagging(false);
-      setNewMessage(e.target.value);
-    }
-  };
-
-  const clickOnMentionName = (name: any) => {
-    setNewMessage((prev) => prev + name + " ");
-    setSpace(true);
-  };
-
   if (!isLoaded || isFetching) {
     return (
       <div className="flex max-h-screen items-center justify-center">
@@ -495,11 +424,6 @@ export default function GroupPage() {
     return null;
   }
 
-  const LazyMap = dynamic(() => import("@/components/Map/index"), {
-    ssr: false,
-    loading: () => <p>Loading...</p>,
-  });
-
   return (
     <div className="flex max-h-screen flex-col">
       <header className="sticky top-16 z-10 border-b bg-background">
@@ -508,17 +432,11 @@ export default function GroupPage() {
             <MapPin className="h-5 w-5 text-primary" />
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold">{group.name}</h1>
-
-              {/* Tooltip Info Icon */}
               <TooltipProvider>
-                <Tooltip open={open} onOpenChange={setOpen}>
+                <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info
-                      onClick={toggleTooltip}
-                      className="h-5 w-5 text-muted-foreground cursor-pointer hover:text-primary transition"
-                    />
+                    <Info className="h-5 w-5 text-muted-foreground cursor-pointer hover:text-primary transition" />
                   </TooltipTrigger>
-
                   <TooltipContent
                     side="bottom"
                     className="bg-[#192643] ml-3 mt-2 z-[9999] text-white shadow-lg p-4 rounded-lg border border-gray-700 max-w-[90vw] sm:max-w-[400px] text-sm space-y-2"
@@ -597,7 +515,6 @@ export default function GroupPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
             <Dialog
               open={settingsDialogOpen}
               onOpenChange={setSettingsDialogOpen}
@@ -642,7 +559,6 @@ export default function GroupPage() {
           </div>
         </div>
       </header>
-
       <main className="flex-1 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="border-b">
@@ -666,7 +582,8 @@ export default function GroupPage() {
               </TabsList>
             </div>
           </div>
-          <BackgroundBeams className="pointer-events-none" />
+          {/* Optional: Uncomment if BackgroundBeams is needed */}
+          <BackgroundBeams className="pointer-events-none" /> 
           <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
               {location ? (
@@ -682,163 +599,10 @@ export default function GroupPage() {
               )}
             </TabsContent>
             <TabsContent value="chat" className="mt-0">
-              {/* <div className="flex flex-col h-[70vh]">
-                <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-                  {messages.map((message) => {
-                    const isYou = message.senderId === user?.id;
-
-                    return (
-                      <div
-                        key={message._id}
-                        className={`flex ${
-                          isYou ? "justify-end" : "justify-start"
-                        }`}
-                      >
-                        <div
-                          className={`flex gap-2 max-w-[80%] ${
-                            isYou ? "flex-row-reverse" : "flex-row"
-                          }`}
-                        >
-                          <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage
-                              src={
-                                group.members.find(
-                                  (m: Member) => m.clerkId === message.senderId
-                                )?.avatar
-                              }
-                            />
-                            <AvatarFallback>
-                              {message.senderName.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div
-                              className={`rounded-lg px-3 py-2 ${
-                                isYou
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted"
-                              }`}
-                            >
-                              <p>{message.content}</p>
-                            </div>
-                            <div
-                              className={`flex gap-1 mt-1 text-xs text-muted-foreground ${
-                                isYou ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              <span>{isYou ? "You" : message.senderName}</span>
-                              <span>•</span>
-                              <span>
-                                {new Date(message.timestamp).toLocaleTimeString(
-                                  [],
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                <div className="listOMember">
-                  {tagging && !space ? (
-                    group.members.map((member) => (
-                      <div
-                        className="tagging p-2"
-                        onClick={() => clickOnMentionName(member.name)}
-                        key={member.clerkId}
-                      >
-                        {member.name}
-                      </div>
-                    ))
-                  ) : (
-                    <></>
-                  )}
-                </div>
-
-                <div className="border-t pt-4 fix-bottom">
-                  <form
-                    className="flex gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }}
-                  >
-                    <Input
-                      placeholder="Type your message..."
-                      value={newMessage}
-                      onChange={(e) => checkingMessage(e)}
-                    />
-                    <Button type="submit">
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </form>
-                </div>
-              </div> */}
               <ChatTab members={group.members} groupId={groupId} />
             </TabsContent>
-
             <TabsContent value="members" className="mt-0">
-              <div className="space-y-4">
-                <h2 className="text-xl font-bold">Group Members</h2>
-                {!statusReceived ? (
-                  <p>Loading member statuses...</p>
-                ) : (
-                  <div
-                    className="grid gap-4"
-                    key={group.members.map((m) => m.clerkId).join()}
-                  >
-                    {group.members.map((member: Member) => {
-                      return (
-                        <Card key={member.clerkId}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage
-                                  src={member.avatar}
-                                  alt={member.name}
-                                />
-                                <AvatarFallback>
-                                  {member.name.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-medium">{member.name}</h3>
-                                  {member.clerkId === user?.id && (
-                                    <span className="text-xs text-muted-foreground">
-                                      (You)
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                  {member.isOnline ? (
-                                    <>
-                                      <WifiHighIcon className="h-3 w-3 text-primary" />
-                                      <span>Online</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <WifiOff className="h-3 w-3 text-destructive" />
-                                      <span>Offline</span>
-                                    </>
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <MemberTab group={group} />
             </TabsContent>
           </div>
         </Tabs>

@@ -1,9 +1,10 @@
-'use client'
+"use client";
 
-import { Avatar, AvatarFallback, AvatarProps, AvatarImage } from "@radix-ui/react-avatar"
-import { Card,CardContent } from "../ui/card"
-import { Wifi, WifiOff } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Use Shadcn/UI Avatar
+import { Card, CardContent } from "@/components/ui/card";
+import { Wifi, WifiOff } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
 
 interface Member {
   clerkId: string;
@@ -12,17 +13,45 @@ interface Member {
   isOnline?: boolean;
 }
 
-interface MemberTabs {
-    group: any;
-    members?: { clerkId: string; name: string; avatar?: string }[];
-  }
+interface Group {
+  _id: string;
+  members: Member[];
+}
 
-export default function MemberTab({ group, members }: MemberTabs) {
-    const { user, isLoaded } = useUser();
-    return (
+interface MemberTabProps {
+  group: Group;
+}
+
+export default function MemberTab({ group }: MemberTabProps) {
+  const { user, isLoaded } = useUser();
+  const [statusReceived, setStatusReceived] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded || !group.members.length) return;
+
+    const checkMemberStatuses = async () => {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setStatusReceived(true);
+      } catch (error) {
+        console.error("Error checking member statuses:", error);
+        setStatusReceived(true); 
+      }
+    };
+
+    checkMemberStatuses();
+  }, [isLoaded, group.members]);
+
+  return (
     <div className="space-y-4">
-        <h2 className="text-xl font-bold">Group Members</h2>
-        <div className="grid gap-4">
+      <h2 className="text-xl font-bold">Group Members</h2>
+      {!statusReceived ? (
+        <p>Loading member statuses...</p>
+      ) : (
+        <div
+          className="grid gap-4"
+          key={group.members.map((m: Member) => m.clerkId).join()}
+        >
           {group.members.map((member: Member) => (
             <Card key={member.clerkId}>
               <CardContent className="p-4">
@@ -34,7 +63,9 @@ export default function MemberTab({ group, members }: MemberTabs) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{member.name}</h3>
-                      {member.clerkId === user?.id && <span className="text-xs text-muted-foreground">(You)</span>}
+                      {member.clerkId === user?.id && (
+                        <span className="text-xs text-muted-foreground">(You)</span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       {member.isOnline ? (
@@ -55,6 +86,7 @@ export default function MemberTab({ group, members }: MemberTabs) {
             </Card>
           ))}
         </div>
+      )}
     </div>
-    )
-};
+  );
+}
