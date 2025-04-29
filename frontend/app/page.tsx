@@ -376,18 +376,18 @@ export default function App() {
                     style={{ perspective: "1000px" }}
                   >
                     <h1
-                      className="text-3xl font-bold tracking-tighter sm:text-5xl pb-1"
+                      className="text-2xl font-bold tracking-tighter sm:text-5xl pb-1"
                       style={{ lineHeight: 1.3 }}
                     >
                       <TypeAnimation
                         sequence={[
-                          "Never Lose Track of Your Group Again",
+                          "Track Your Group Easily",
                           2000,
-                          "Real-Time Group Location Tracking",
+                          "Live Group Location Sharing",
                           2000,
-                          "Stay Connected, Stay Together",
+                          "Stay Close, Stay Synced",
                           2000,
-                          "Make Group Navigation Effortless",
+                          "Navigate as One Team",
                           2000,
                         ]}
                         repeat={Infinity}
@@ -514,7 +514,7 @@ export default function App() {
                           <MapPin className="h-12 w-12 text-primary mx-auto mb-3" />
                         </motion.div>
                         <p className="font-medium text-lg">
-                          Real-time location tracking demo
+                          Real-time location tracking
                         </p>
                       </div>
                     </motion.div>
