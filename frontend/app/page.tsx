@@ -951,6 +951,20 @@ export default function App() {
                     </AccordionContent>
                   </AccordionItem>
 
+                  <AccordionItem value="faq-4">
+                    <AccordionTrigger className="text-left text-lg font-semibold">
+                      How much battery does it use?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
+                      We've optimized the app to use minimal battery while still
+                      providing real-time updates. You can adjust the frequency
+                      of location updates to balance between accuracy and
+                      battery life. In typical usage, our app consumes similar
+                      battery to other navigation apps. We also provide a
+                      battery-saving mode for extended trips.
+                    </AccordionContent>
+                  </AccordionItem>
+
                   <AccordionItem value="faq-5">
                     <AccordionTrigger className="text-left text-lg font-semibold">
                       Can I use the app without data connection?

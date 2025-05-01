@@ -126,10 +126,7 @@ export default function GroupPage() {
     Map<string, { lat: number; lng: number }>
   >(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const initialized = useRef(false);
-  const [open, setOpen] = useState(false);
 
-  const toggleTooltip = () => setOpen(!open);
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
 
@@ -391,7 +388,7 @@ export default function GroupPage() {
           setQrCodeLoading(false);
         }
       }, 800);
-
+      
       return () => clearTimeout(timer);
     }
   }, [inviteDialogOpen]);
@@ -446,11 +443,11 @@ export default function GroupPage() {
   const generateShareUrl = (platform: string) => {
     const groupName = group?.name || "our ride";
     const joinUrl = `${window.location.origin}/join/${group?.code}`;
-
+    
     // Create different formats based on platform
     const shareText = encodeURIComponent(`Join my group "${groupName}" on RiderConnect!`);
     const shareUrl = encodeURIComponent(joinUrl);
-
+    
     switch (platform) {
       case 'whatsapp':
         return `https://wa.me/?text=${shareText}%0A${shareUrl}`;
@@ -472,14 +469,14 @@ export default function GroupPage() {
     try {
       const shareUrl = generateShareUrl(platform);
       const windowFeatures = 'width=550,height=450,scrollbars=yes,resizable=yes';
-
+      
       // For all platforms, use a popup
       const opened = window.open(shareUrl, '_blank', windowFeatures);
-
+      
       if (!opened) {
         throw new Error('Popup was blocked');
       }
-
+      
       // Clear loading state after a short delay
       setTimeout(() => setShareLoading(null), 500);
     } catch (error) {
@@ -520,12 +517,9 @@ export default function GroupPage() {
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold">{group.name}</h1>
               <TooltipProvider>
-                <Tooltip open={open} onOpenChange={setOpen}>
+                <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info
-                      onClick={toggleTooltip}
-                      className="h-5 w-5 text-muted-foreground cursor-pointer hover:text-primary transition"
-                    />
+                    <Info className="h-5 w-5 text-muted-foreground cursor-pointer hover:text-primary transition" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="bottom"
@@ -567,8 +561,8 @@ export default function GroupPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Dialog
-              open={inviteDialogOpen}
+            <Dialog 
+              open={inviteDialogOpen} 
               onOpenChange={(open) => {
                 setInviteDialogOpen(open);
                 if (open) {
@@ -583,9 +577,9 @@ export default function GroupPage() {
               }}
             >
               <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <Button 
+                  variant="outline" 
+                  size="sm" 
                   className="relative group hover:scale-105 active:scale-95 transition-transform"
                 >
                   <Users className="h-4 w-4 mr-2" />
@@ -605,14 +599,14 @@ export default function GroupPage() {
                     Invite others by scanning the QR code or sharing the invite code below via your preferred communication channels.
                   </DialogDescription>
                 </DialogHeader>
-
+                
                 {/* <div className="border-b border-muted/30 mb-2 pb-2">
                   <p className="text-xs text-muted-foreground text-center">
                     Share the invite link or code with your friends.
                   </p>
                 </div> */}
                 <div className="grid gap-2 sm:gap-4 py-2 sm:py-4">
-                  <motion.div
+                  <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
@@ -625,13 +619,13 @@ export default function GroupPage() {
                           <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
                         </div>
                       )}
-
+                      
                       {qrCodeError ? (
                         <div className="h-[150px] w-[150px] flex flex-col items-center justify-center bg-gray-100 rounded-md p-4 text-center">
                           <div className="text-destructive mb-2">QR Code Error</div>
                           <p className="text-xs text-muted-foreground mb-2">Failed to generate QR code</p>
-                          <Button
-                            size="sm"
+                          <Button 
+                            size="sm" 
                             variant="outline"
                             onClick={() => {
                               setQrCodeError(false);
@@ -644,8 +638,8 @@ export default function GroupPage() {
                       ) : (
                         <div className="relative">
                           {/* Use the QRCode component with correct props */}
-                          <QRCodeSVG
-                            value={`${window.location.origin}/join/${group.code}`}
+                          <QRCodeSVG 
+                            value={`${window.location.origin}/join/${group.code}`} 
                             size={120}
                             className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] rounded-md"
                             level="H"
@@ -668,9 +662,9 @@ export default function GroupPage() {
                       )}
                     </div>
                   </motion.div>
-
+                  
                   {/* Invite Code Section */}
-                  <motion.div
+                  <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
@@ -696,7 +690,7 @@ export default function GroupPage() {
                   </motion.div>
 
                   {/* Social Share Section */}
-                  <motion.div
+                  <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
@@ -717,8 +711,8 @@ export default function GroupPage() {
                           variant="outline"
                           size="icon"
                           disabled={shareLoading !== null}
-                          style={{
-                            backgroundColor: shareLoading === platform ? 'transparent' : undefined
+                          style={{ 
+                            backgroundColor: shareLoading === platform ? 'transparent' : undefined 
                           }}
                           className={cn(
                             "transition-all duration-300 relative group",
@@ -759,7 +753,7 @@ export default function GroupPage() {
                   </motion.div>
 
                   {/* Share Link Section */}
-                  <motion.div
+                  <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
@@ -799,7 +793,7 @@ export default function GroupPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
+            
             <Dialog
               open={settingsDialogOpen}
               onOpenChange={setSettingsDialogOpen}
@@ -844,7 +838,7 @@ export default function GroupPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1">
+      <main className="flex-1 overflow-hidden relative z-10">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="border-b">
             <div className="container flex items-center justify-center">
@@ -868,7 +862,7 @@ export default function GroupPage() {
             </div>
           </div>
           {/* Optional: Uncomment if BackgroundBeams is needed */}
-          <BackgroundBeams className="fixed inset-0 pointer-events-none z-0" />
+          <BackgroundBeams className="fixed inset-0 pointer-events-none z-0" /> 
           <div className="container py-6 px-4 relative z-10">
             <TabsContent value="map" className="mt-0">
               {location ? (
