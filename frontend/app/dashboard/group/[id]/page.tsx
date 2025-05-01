@@ -844,7 +844,7 @@ export default function GroupPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1 overflow-hidden relative z-10">
+      <main className="flex-1 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="border-b">
             <div className="container flex items-center justify-center">
@@ -869,7 +869,7 @@ export default function GroupPage() {
           </div>
           {/* Optional: Uncomment if BackgroundBeams is needed */}
           <BackgroundBeams className="fixed inset-0 pointer-events-none z-0" />
-          <div className="container py-6 px-4 relative z-10">
+          <div className="container py-6 px-4">
             <TabsContent value="map" className="mt-0">
               {location ? (
                 <MapComponent
