@@ -512,7 +512,7 @@ export default function GroupPage() {
   }
 
   return (
-    <div className="flex max-h-screen flex-col overflow-hidden">
+    <div className="flex max-h-screen flex-col">
       <header className="sticky top-16 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4">
@@ -869,7 +869,7 @@ export default function GroupPage() {
           </div>
           {/* Optional: Uncomment if BackgroundBeams is needed */}
           <BackgroundBeams className="fixed inset-0 pointer-events-none z-0" />
-          <div className="container py-6 px-4 relative z-10 flex-1 overflow-y-auto">
+          <div className="container py-6 px-4 relative z-10">
             <TabsContent value="map" className="mt-0">
               {location ? (
                 <MapComponent
