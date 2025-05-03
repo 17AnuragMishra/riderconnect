@@ -38,6 +38,7 @@ import MemberTab from "@/components/Member/MemberTab";
 import axios from "axios";
 import io from "socket.io-client";
 import { BackgroundBeams } from "@/components/ui/background-beams";
+import ShareComponent from "./share";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const socket = io(API_BASE_URL, {
@@ -566,7 +567,7 @@ export default function GroupPage() {
               </TooltipProvider>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">            
             <Dialog
               open={inviteDialogOpen}
               onOpenChange={(open) => {

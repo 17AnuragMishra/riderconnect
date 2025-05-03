@@ -35,7 +35,7 @@ export default function MemberTab({ group }: MemberTabProps) {
         setStatusReceived(true);
       } catch (error) {
         console.error("Error checking member statuses:", error);
-        setStatusReceived(true); 
+        setStatusReceived(true);
       }
     };
 
@@ -43,7 +43,7 @@ export default function MemberTab({ group }: MemberTabProps) {
   }, [isLoaded, group.members]);
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 overflow-y-auto mb-4 space-y-4">
       <h2 className="text-xl font-bold">Group Members</h2>
       {!statusReceived ? (
         <p>Loading member statuses...</p>
