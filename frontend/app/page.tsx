@@ -886,7 +886,7 @@ export default function App() {
               >
                 <Send className="h-4 w-4" />
                 <Link
-                  href="/sign-up"
+                  href="/dashboard"
                   className="text-sm font-medium hover:underline"
                 >
                   Ready to get started? Create your account now
