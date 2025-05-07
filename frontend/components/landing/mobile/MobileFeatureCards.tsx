@@ -6,7 +6,6 @@ import { motion, useInView } from "framer-motion";
 import { MapPin, MessageSquare, Bell, Calendar, WifiOff, Battery } from "lucide-react";
 import { throttle } from "lodash";
 
-// Progressive loading for images
 const IconWithLoading = ({ children }: { children: React.ReactNode }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   
@@ -28,7 +27,6 @@ type FeatureCard = {
   icon: React.ReactNode;
 };
 
-// Feature data using Lucide icons directly for better performance and styling
 const features: FeatureCard[] = [
   {
     id: "real-time-tracking",
@@ -71,7 +69,6 @@ const features: FeatureCard[] = [
 export default function MobileFeatureCards() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Define reusable observer options
   const observerOptions = {
     once: false,
     amount: 0.2,
@@ -87,10 +84,8 @@ export default function MobileFeatureCards() {
   const lastTouchX = useRef(0);
   const lastTouchTime = useRef(Date.now());
 
-  // Minimum swipe distance (in px)
   const minSwipeDistance = 50;
 
-  // Update active index based on scroll position
   const handleScroll = useCallback(() => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
@@ -104,7 +99,6 @@ export default function MobileFeatureCards() {
     }
   }, [activeIndex]);
 
-  // Scroll to card when indicator is clicked
   const scrollToCard = useCallback((index: number) => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
@@ -116,29 +110,24 @@ export default function MobileFeatureCards() {
     }
   }, []);
 
-  // Handle touch start event
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null); // Reset
     setTouchStart(e.targetTouches[0].clientX);
   };
 
-  // Add velocity decay for smoother swipe behavior
   const velocityDecay = useCallback((velocity: number) => {
     return velocity * 0.95; // Smooth out the velocity
   }, []);
 
-  // Handle touch move event
   const onTouchMove = (e: React.TouchEvent) => {
     const touchX = e.targetTouches[0].clientX;
     setTouchEnd(touchX);
     
-    // Calculate swipe velocity for more responsive swiping
     const touchTime = Date.now();
     const deltaX = touchX - lastTouchX.current;
     const deltaTime = touchTime - lastTouchTime.current;
     
     if (deltaTime > 0) {
-      // Apply velocity decay for smoother interactions
       const newVelocity = deltaX / deltaTime;
       setSwipeVelocity(prev => velocityDecay(prev) + newVelocity);
     }
@@ -147,7 +136,6 @@ export default function MobileFeatureCards() {
     lastTouchTime.current = touchTime;
   };
 
-  // Handle touch end event
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     

@@ -11,7 +11,6 @@ type Step = {
   icon: React.ReactNode;
 };
 
-// Define steps with Lucide icons for better performance
 const steps: Step[] = [
   {
     id: "create",
@@ -39,7 +38,6 @@ const steps: Step[] = [
   }
 ];
 
-// Progressive loading component for icons
 const IconWithLoading = ({ children }: { children: React.ReactNode }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   
@@ -58,8 +56,7 @@ export default function MobileHowItWorks() {
   const [activeStep, setActiveStep] = useState<string | null>("create");
   const [isLoading, setIsLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Define reusable observer options
+
   const observerOptions = {
     once: false,
     amount: 0.2,
@@ -86,7 +83,6 @@ export default function MobileHowItWorks() {
     setActiveStep(currentActiveStep => currentActiveStep === stepId ? null : stepId);
   }, []);
 
-  // Loading state management for smoother transitions
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 100);
     return () => clearTimeout(timer);
@@ -200,7 +196,6 @@ export default function MobileHowItWorks() {
         </motion.div>
       ))}
       
-      {/* Progressive enhancement hint */}
       <div className="text-center text-xs text-muted-foreground mt-4 px-4">
         <p>Tap each step to learn more</p>
       </div>
