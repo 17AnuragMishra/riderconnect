@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -17,6 +17,7 @@ import { useUser } from "@clerk/nextjs";
 import L from "leaflet";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+
 
 interface MapComponentProps {
   location: { latitude: number; longitude: number };
@@ -42,10 +43,9 @@ function createAvatarIcon(avatarUrl?: string, isOnline: boolean = false) {
     iconAnchor: [16, 16],
   });
 }
-
 const blueIcon = new L.Icon({
   iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+  "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
   shadowUrl:
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   iconSize: [25, 41],
@@ -68,17 +68,50 @@ const redIcon = new L.Icon({
 function MapUpdater({
   center,
   locations,
+  isInitialLoad,
 }: {
   center: L.LatLngTuple;
   locations: [string, { lat: number; lng: number }][];
+  isInitialLoad: boolean;
 }) {
   const map = useMap();
   useEffect(() => {
-    const bounds = L.latLngBounds([center]);
-    locations.forEach(([, { lat, lng }]) => bounds.extend([lat, lng]));
-    map.fitBounds(bounds, { padding: [100, 100] });
-  }, [map, center, locations]);
+    if (isInitialLoad && map) {
+      const bounds = L.latLngBounds([center]);
+      locations.forEach(([, { lat, lng }]) => bounds.extend([lat, lng]));
+      map.fitBounds(bounds, { padding: [100, 100] });
+    }
+  }, [map, center, locations, isInitialLoad]);
   return null;
+}
+
+function UserMarker({
+  position,
+  avatar,
+  isOnline,
+}: {
+  position: LatLng;
+  avatar?: string;
+  isOnline?: boolean;
+}) {
+  const map = useMap();
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    if (markerRef.current && map) {
+      markerRef.current.setLatLng(position);
+    }
+  }, [position, map]);
+
+  return (
+    <Marker
+      position={position}
+      icon={createAvatarIcon(avatar, isOnline || false)}
+      ref={markerRef}
+    >
+      <Popup>Your Location</Popup>
+    </Marker>
+  );
 }
 
 export default function MapComponent({
@@ -90,6 +123,8 @@ export default function MapComponent({
 }: MapComponentProps) {
   const { user } = useUser();
   const userPos: LatLng = [location.latitude, location.longitude];
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
   
   const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [srcCoords, setSrcCoords] = useState<LatLng | null>(null);
@@ -107,7 +142,20 @@ export default function MapComponent({
     if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
     return null;
   }
-
+  
+  const LoadingOverlay = () => (
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm dark:bg-background/90 bg-grid-pattern" style={{ height: '100%', width: '100%' }}>
+      <div className="animate-pulse-gentle flex flex-col items-center space-y-4 p-6 max-w-xs w-full">
+        <div className="shadow-glow rounded-lg bg-card p-4 w-full">
+          <div className="text-center mb-3 text-sm font-medium text-primary">Loading Map Data</div>
+          <Progress value={loadingProgress} className="h-2 w-full" />
+          <div className="mt-2 text-xs text-muted-foreground text-center">
+            {loadingProgress < 100 ? 'Fetching route information...' : 'Rendering map...'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
   async function fetchRoute(from: LatLng, to: LatLng) {
     const res = await fetch(
       `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`
@@ -142,7 +190,6 @@ export default function MapComponent({
       } catch (error) {
         console.error("Error loading map data:", error);
       } finally {
-        // Slight delay to show the completed progress before hiding
         setTimeout(() => {
           setIsLoading(false);
         }, 500);
@@ -151,35 +198,14 @@ export default function MapComponent({
     getRoute();
   }, [source, destination]);
 
-  const LoadingOverlay = () => (
-    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm dark:bg-background/90 bg-grid-pattern" style={{ height: '100%', width: '100%' }}>
-      <div className="animate-pulse-gentle flex flex-col items-center space-y-4 p-6 max-w-xs w-full">
-        <div className="shadow-glow rounded-lg bg-card p-4 w-full">
-          <div className="text-center mb-3 text-sm font-medium text-primary">Loading Map Data</div>
-          <Progress value={loadingProgress} className="h-2 w-full" />
-          <div className="mt-2 text-xs text-muted-foreground text-center">
-            {loadingProgress < 100 ? 'Fetching route information...' : 'Rendering map...'}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  // Force Leaflet to update after container size changes
   useEffect(() => {
-    const handleResize = () => {
-      window.dispatchEvent(new Event('resize'));
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    // Trigger resize event after component mounts to ensure map renders properly
-    const timeoutId = setTimeout(handleResize, 100);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(timeoutId);
-    };
-  }, []);
+    if (isInitialLoad) {
+      const timer = setTimeout(() => {
+        setIsInitialLoad(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialLoad]);
 
   // Define different map tile layers
   const mapLayers = {
@@ -198,40 +224,45 @@ export default function MapComponent({
   };
 
   return (
-    <div className="relative w-full min-h-[350px] xs:min-h-[450px] sm:min-h-[500px] md:min-h-[70vh] lg:min-h-[70vh]">
+    <div className="relative w-full h-full min-h-[350px] xs:min-h-[450px] sm:min-h-[500px] md:min-h-[70vh] lg:min-h-[70vh]">
       <div 
         className={cn(
-          "map-container h-full transition-all duration-300 ease-in-out relative shadow-md rounded-lg overflow-hidden",
+          "map-container h-full w-full transition-all duration-300 ease-in-out relative shadow-md rounded-lg overflow-hidden",
           "bg-muted/30 dark:bg-muted/10",
           "touch-optimized"
         )}
         style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
+          position: 'relative',
           height: '100%',
+          width: '100%',
           minHeight: 'inherit'
         }}
       >
+        {!mapReady && <LoadingOverlay />}
         <MapContainer 
           center={userPos} 
+          zoom={13}
           scrollWheelZoom={true} 
           className="h-full w-full z-10"
           zoomAnimation={true}
           fadeAnimation={true}
           markerZoomAnimation={true}
-          zoomControl={false} // Disable default zoom control so we can position it better
+          zoomControl={false}
           style={{ 
             height: '100%', 
             width: '100%', 
             minHeight: 'inherit',
-            position: 'relative' 
+            position: 'relative',
+            zIndex: 1
+          }}
+          whenReady={() => {
+            console.log('Map is ready');
+            setMapReady(true);
           }}
         >
-          {/* Add map controls */}
           <ZoomControl position="topright" />
           <ScaleControl position="bottomright" metric={true} imperial={false} />
           
-          {/* Layer control to switch between different map styles */}
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="Standard">
               <TileLayer
@@ -252,52 +283,53 @@ export default function MapComponent({
               />
             </LayersControl.BaseLayer>
           </LayersControl>
-      <MapUpdater center={userPos} locations={groupLocations} />
 
-      {srcCoords && (
-        <Marker position={srcCoords} icon={blueIcon}>
-          <Popup>Source</Popup>
-        </Marker>
-      )}
+          {mapReady && (
+            <>
+              <MapUpdater center={userPos} locations={groupLocations} isInitialLoad={isInitialLoad} />
 
-      {dstCoords && (
-        <Marker position={dstCoords} icon={redIcon}>
-          <Popup>Destination</Popup>
-        </Marker>
-      )}
+              {srcCoords && (
+                <Marker position={srcCoords} icon={blueIcon}>
+                  <Popup>Source</Popup>
+                </Marker>
+              )}
 
-      {routeCoords.length > 0 && (
-        <Polyline positions={routeCoords} pathOptions={{ color: "blue" }} />
-      )}
+              {dstCoords && (
+                <Marker position={dstCoords} icon={redIcon}>
+                  <Popup>Destination</Popup>
+                </Marker>
+              )}
 
-      <Marker
-        position={userPos}
-        icon={createAvatarIcon(
-          members?.find((m) => m.clerkId === user?.id)?.avatar,
-          members?.find((m) => m.clerkId === user?.id)?.isOnline || false
-        )}
-      >
-        <Popup>Your Location</Popup>
-      </Marker>
+              {routeCoords.length > 0 && (
+                <Polyline positions={routeCoords} pathOptions={{ color: "blue" }} />
+              )}
 
-      {groupLocations.map(([clerkId, { lat, lng }]) => (
-        <Marker
-          key={clerkId}
-          position={[lat, lng]}
-          icon={createAvatarIcon(
-            members?.find((m) => m.clerkId === clerkId)?.avatar,
-            members?.find((m) => m.clerkId === clerkId)?.isOnline || false
+              <UserMarker
+                position={userPos}
+                avatar={members?.find((m) => m.clerkId === user?.id)?.avatar}
+                isOnline={members?.find((m) => m.clerkId === user?.id)?.isOnline}
+              />
+
+              {groupLocations.map(([clerkId, { lat, lng }]) => (
+                <Marker
+                  key={clerkId}
+                  position={[lat, lng]}
+                  icon={createAvatarIcon(
+                    members?.find((m) => m.clerkId === clerkId)?.avatar,
+                    members?.find((m) => m.clerkId === clerkId)?.isOnline || false
+                  )}
+                >
+                  <Popup>
+                    {members?.find((m) => m.clerkId === clerkId)?.name || clerkId} -{" "}
+                    {members?.find((m) => m.clerkId === clerkId)?.isOnline ? "Online" : "Offline"}
+                  </Popup>
+                </Marker>
+              ))}
+            </>
           )}
-        >
-          <Popup>
-            {members?.find((m) => m.clerkId === clerkId)?.name || clerkId} -{" "}
-            {members?.find((m) => m.clerkId === clerkId)?.isOnline ? "Online" : "Offline"}
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
-    
-    {isLoading && <LoadingOverlay />}
+        </MapContainer>
+        
+        {isLoading && <LoadingOverlay />}
       </div>
     </div>
   );

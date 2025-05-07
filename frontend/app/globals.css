@@ -429,77 +429,42 @@
   width: 100%;
   height: 100%;
   z-index: 1;
-  touch-action: none;
 }
 
-.leaflet-touch .leaflet-control-layers,
-.leaflet-touch .leaflet-bar {
-  border: 2px solid rgba(0,0,0,0.2);
-  background-clip: padding-box;
-}
-
-.leaflet-control-container .leaflet-control {
-  margin: 0.5rem !important;
-}
-
-/* Ensure proper z-index stacking for map elements */
-.leaflet-map-pane {
+.leaflet-control-container {
   z-index: 2;
 }
 
-.leaflet-tile-pane {
+.leaflet-pane {
   z-index: 1;
 }
 
 .leaflet-overlay-pane {
-  z-index: 3;
+  z-index: 2;
 }
 
 .leaflet-marker-pane {
-  z-index: 4;
+  z-index: 3;
 }
 
 .leaflet-tooltip-pane {
-  z-index: 5;
+  z-index: 4;
 }
 
 .leaflet-popup-pane {
-  z-index: 6;
+  z-index: 5;
 }
 
 .leaflet-control {
-  z-index: 7;
-}
-
-/* Improve touch interaction for markers */
-.leaflet-marker-icon {
-  touch-action: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Ensure proper popup positioning on mobile */
-.leaflet-popup {
-  margin-bottom: 0;
-}
-
-.leaflet-popup-content-wrapper {
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px hsl(var(--primary) / 0.1);
-}
-
-/* Optimize touch areas for controls */
-.leaflet-touch .leaflet-control-zoom a {
-  width: 44px;
-  height: 44px;
-  line-height: 44px;
+  z-index: 6;
 }
 
 /* Map container specific styles */
 .map-container {
   position: relative;
   width: 100%;
-  min-height: 300px; /* Base minimum height */
   height: 100%;
+  min-height: 300px;
   overflow: hidden;
   border-radius: var(--radius);
 }
@@ -507,11 +472,10 @@
 /* Mobile-specific map container styles */
 @media (max-width: 768px) {
   .map-container {
-    height: calc(100vh - 200px); /* Adjust based on your layout */
+    height: calc(100vh - 200px);
     min-height: 300px;
   }
   
-  /* Ensure map container fills available space */
   .leaflet-container {
     position: absolute !important;
     top: 0;
