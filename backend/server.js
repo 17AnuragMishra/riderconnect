@@ -18,7 +18,6 @@ const io = new Server(server, { cors: corsOptions });
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Make io accessible to routes
 app.set('io', io);
 
 app.use('/groups', groupRoutes);

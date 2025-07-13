@@ -499,7 +499,7 @@ export default function App() {
                 className="mx-auto lg:mx-0 relative w-full max-w-[500px] aspect-video rounded-xl overflow-hidden shadow-2xl"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center backdrop-blur-sm">
-                  <div className="relative w-full h-full bg-[url('/map-placeholder.png')] bg-cover bg-center">
+                  <div className="relative w-full h-full bg-cover bg-center">
                     <motion.div
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}

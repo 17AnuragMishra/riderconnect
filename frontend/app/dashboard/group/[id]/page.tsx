@@ -221,6 +221,8 @@ export default function GroupPage() {
 
     const toastCooldown = new Map();
     socket.on("distanceAlert", ({ clerkId, otherClerkId, distance }) => {
+      const isArchived = group && group.reachTime && new Date(group.reachTime) < new Date();
+      if (isArchived) return; // Do not show toast for archived groups
       if (clerkId === user.id || otherClerkId === user.id) {
         const alertKey = `${clerkId}-${otherClerkId}`;
         const lastToast = toastCooldown.get(alertKey) || 0;
@@ -845,9 +847,9 @@ export default function GroupPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1 overflow-hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="border-b">
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
+          <div className="border-b flex-shrink-0">
             <div className="container flex items-center justify-center">
               <TabsList className="h-12">
                 <TabsTrigger value="map" className="flex items-center gap-2">
@@ -870,8 +872,8 @@ export default function GroupPage() {
           </div>
           {/* Optional: Uncomment if BackgroundBeams is needed */}
           <BackgroundBeams className="fixed inset-0 pointer-events-none z-0" />
-          <div className="container py-6 px-4">
-            <TabsContent value="map" className="mt-0">
+          <div className="container py-6 px-4 flex-1 overflow-hidden">
+            <TabsContent value="map" className="mt-0 h-full">
               {location ? (
                 <MapComponent
                   location={location}
@@ -884,10 +886,10 @@ export default function GroupPage() {
                 <p>Loading map...</p>
               )}
             </TabsContent>
-            <TabsContent value="chat" className="mt-0">
+            <TabsContent value="chat" className="mt-0 h-full">
               <ChatTab members={group.members} groupId={groupId} />
             </TabsContent>
-            <TabsContent value="members" className="mt-0">
+            <TabsContent value="members" className="mt-0 h-full">
               <MemberTab group={group} />
             </TabsContent>
           </div>

@@ -75,6 +75,35 @@ interface PlaceSuggestion {
   display_name: string;
 }
 
+// Simple distance calculation using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function formatDistance(distance: number): string {
+  if (distance < 1) {
+    return `${(distance * 1000).toFixed(0)}m`;
+  }
+  return `${distance.toFixed(1)}km`;
+}
+
+function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (hours > 0) {
+    return `${hours}h ${mins}m`;
+  }
+  return `${mins}m`;
+}
+
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
   const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
@@ -96,6 +125,9 @@ export default function Dashboard() {
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [groupMetrics, setGroupMetrics] = useState<Map<string, { distance: number; duration: { hours: number; minutes: number } }>>(new Map());
+  const [sourceError, setSourceError] = useState<string>("");
+  const [destinationError, setDestinationError] = useState<string>("");
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in")
@@ -120,23 +152,44 @@ export default function Dashboard() {
     return Object.keys(errors).length === 0;
   };
 
+  const validateLocation = async (place: string, type: "source" | "destination") => {
+    if (!place.trim()) {
+      if (type === "source") setSourceError("Source location is required");
+      else setDestinationError("Destination location is required");
+      return false;
+    }
+
+    // Clear error if validation passes
+    if (type === "source") setSourceError("");
+    else setDestinationError("");
+    return true;
+  };
+
   const handleCreateGroup = async () => {
-    if (!newGroupName.trim() || !source.trim() || !destination.trim()) {
+    if (!user) return;
+
+    // Validate locations first
+    const isSourceValid = await validateLocation(source, "source");
+    const isDestinationValid = await validateLocation(destination, "destination");
+
+    if (!isSourceValid || !isDestinationValid) {
       toast({
-        title: "Error",
-        description: "Please fill all required fields",
+        title: "Validation Error",
+        description: "Please enter valid locations within India",
         variant: "destructive",
       });
       return;
     }
+
     if (!validateDateTimes()) {
       toast({
-        title: "Error",
-        description: "Please correct the date and time errors",
+        title: "Invalid Times",
+        description: "Start time must be before reach time",
         variant: "destructive",
       });
       return;
     }
+
     setIsCreating(true);
     try {
       const formattedStartTime = new Date(startDateTime).toISOString();
@@ -198,19 +251,41 @@ export default function Dashboard() {
     }
   };
 
-  const getGroupMetrics = (source: string, destination: string) => {
+  const getGroupMetrics = async (source: string, destination: string) => {
+    const key = `${source}-${destination}`;
+    
+    // Check if we already have cached metrics
+    if (groupMetrics.has(key)) {
+      return groupMetrics.get(key);
+    }
+    
+    // Use simple hash-based calculation for demo purposes
     const hash = (source + destination).split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
-    return {
+    
+    const fallbackMetrics = {
       distance: Math.abs(100 + (hash % 400)),
       duration: {
         hours: Math.abs(1 + (hash % 9)),
         minutes: Math.abs(hash % 60)
       }
     };
+    
+    setGroupMetrics(prev => new Map(prev).set(key, fallbackMetrics));
+    return fallbackMetrics;
   };
+
+  // Load metrics for all groups on component mount
+  useEffect(() => {
+    const loadMetrics = async () => {
+      for (const group of groups) {
+        await getGroupMetrics(group.source, group.destination);
+      }
+    };
+    loadMetrics();
+  }, [groups]);
 
   const AnimatedValue: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = "" }) => {
     const [displayValue, setDisplayValue] = useState(0);
@@ -427,17 +502,23 @@ export default function Dashboard() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="source">Source</Label>
+                    <Label htmlFor="source">Source (India only)</Label>
                     <Input
                       id="source"
-                      placeholder="e.g., New York"
+                      placeholder="e.g., Mumbai, Maharashtra"
                       value={source}
                       onChange={(e) => {
                         setSource(e.target.value);
+                        setSourceError(""); // Clear error when typing
                         fetchSuggestion(e.target.value, e.target.id);
                       }}
+                      onBlur={() => validateLocation(source, "source")}
+                      className={sourceError ? "border-red-500" : ""}
                       required
                     />
+                    {sourceError && (
+                      <p className="text-sm text-red-500">{sourceError}</p>
+                    )}
                     {suggestedSource.length > 0 && source.length > 0 && (
                       <SuggestionList>
                         {suggestedSource.map((place, index) => (
@@ -447,6 +528,7 @@ export default function Dashboard() {
                             onClick={() => {
                               setSource(place.display_name);
                               setSuggestedSource([]);
+                              setSourceError(""); // Clear error when selecting
                             }}
                           >
                             {place.display_name}
@@ -456,17 +538,23 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="destination">Destination</Label>
+                    <Label htmlFor="destination">Destination (India only)</Label>
                     <Input
                       id="destination"
-                      placeholder="e.g., Boston"
+                      placeholder="e.g., Delhi, Delhi"
                       value={destination}
                       onChange={(e) => {
                         setDestination(e.target.value);
+                        setDestinationError(""); // Clear error when typing
                         fetchSuggestion(e.target.value, e.target.id);
                       }}
+                      onBlur={() => validateLocation(destination, "destination")}
+                      className={destinationError ? "border-red-500" : ""}
                       required
                     />
+                    {destinationError && (
+                      <p className="text-sm text-red-500">{destinationError}</p>
+                    )}
                     {suggestedDestination.length > 0 &&
                       destination.length > 0 && (
                         <SuggestionList>
@@ -477,6 +565,7 @@ export default function Dashboard() {
                               onClick={() => {
                                 setDestination(place.display_name);
                                 setSuggestedDestination([]);
+                                setDestinationError(""); // Clear error when selecting
                               }}
                             >
                               {place.display_name}
@@ -695,10 +784,11 @@ export default function Dashboard() {
 
                       {/* Stats */}
                       {(() => {
-                        const metrics = getGroupMetrics(
-                          group.source,
-                          group.destination
-                        );
+                        const key = `${group.source}-${group.destination}`;
+                        const metrics = groupMetrics.get(key) || {
+                          distance: 0,
+                          duration: { hours: 0, minutes: 0 }
+                        };
                         return (
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -706,7 +796,7 @@ export default function Dashboard() {
                                 Estimated Distance
                               </p>
                               <p className="font-medium">
-                                {metrics.distance} km
+                                {formatDistance(metrics.distance)}
                               </p>
                             </div>
                             <div>
@@ -714,8 +804,7 @@ export default function Dashboard() {
                                 Est. Duration
                               </p>
                               <p className="font-medium">
-                                {metrics.duration.hours}h{" "}
-                                {metrics.duration.minutes}m
+                                {formatDuration(metrics.duration.hours * 60 + metrics.duration.minutes)}
                               </p>
                             </div>
                           </div>

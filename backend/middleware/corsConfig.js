@@ -1,7 +1,9 @@
 const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:3001',
     'https://riderconnect.vercel.app',
-    'http://192.168.1.51:3000',
+    'https://riderconnect.in',
+    'https://www.riderconnect.in',
     ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
   ];
   const corsOptions = {
