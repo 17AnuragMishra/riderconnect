@@ -1,1368 +1,607 @@
 "use client";
 
-import React, { Suspense } from "react";
-import Image from "next/image";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useIsMobile } from "@/components/ui/use-mobile";
-import MobileFeatureCards from "@/components/landing/mobile/MobileFeatureCards";
-import MobileHowItWorks from "@/components/landing/mobile/MobileHowItWorks";
-import DesktopFeatureCards from "@/components/landing/desktop/DesktopFeatureCards";
-import DesktopHowItWorks from "@/components/landing/desktop/DesktopHowItWorks";
-
-// Simple loading spinner component for Suspense fallback
-const LoadingSpinner = () => (
-  <div className="flex justify-center items-center py-16 w-full">
-    <div className="h-10 w-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
-  </div>
-);
-
-function LandingPage() {
-  return (
-    <main className="flex min-h-screen flex-col items-center">
-      <HeroSection />
-      <FeaturesSection />
-      <HowItWorksSection />
-      <CTASection />
-    </main>
-  );
-}
-
-// Client component wrapper to handle mobile detection
-function FeaturesSection() {
-  const isMobile = useIsMobile();
-
-  return (
-    <section
-      id="features"
-      className="w-full py-12 md:py-16 px-4 md:px-8 bg-card"
-    >
-      <div className="container mx-auto">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
-          Key Features
-        </h2>
-        <p className="text-center text-muted-foreground mb-8 md:mb-12 max-w-2xl mx-auto">
-          Everything you need to stay connected with your group on the go
-        </p>
-
-        <div className="w-full max-w-7xl mx-auto">
-          <Suspense fallback={<LoadingSpinner />}>
-            {isMobile ? <MobileFeatureCards /> : <DesktopFeatureCards />}
-          </Suspense>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function HowItWorksSection() {
-  "use client";
-  const isMobile = useIsMobile();
-
-  return (
-    <section id="how-it-works" className="w-full py-16 px-4 md:px-8">
-      <div className="container mx-auto">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-8">
-          How It Works
-        </h2>
-        <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          Get started with RiderConnect in just a few simple steps
-        </p>
-        <div className="w-full max-w-6xl mx-auto">
-          <Suspense fallback={<LoadingSpinner />}>
-            {isMobile ? <MobileHowItWorks /> : <DesktopHowItWorks />}
-          </Suspense>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function HeroSection() {
-  return (
-    <section className="w-full pt-24 pb-16 px-4 md:px-8 bg-gradient-to-r from-primary/10 to-accent/10 bg-grid-pattern">
-      <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4">
-            Stay Connected with Your Group
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Track, chat, and coordinate with your friends and family in
-            real-time.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link
-              href="/signup"
-              className="button-gradient text-primary-foreground min-touch-target font-medium rounded-md py-3 px-6 text-center shadow-md hover:shadow-lg transition-all"
-            >
-              Get Started
-            </Link>
-            <Link
-              href="#features"
-              className="bg-card min-touch-target text-card-foreground font-medium rounded-md py-3 px-6 text-center border border-input hover:bg-primary/5 transition-all"
-            >
-              Learn More
-            </Link>
-          </div>
-        </div>
-        <div className="animate-float">
-          <div className="relative w-[300px] h-[400px] md:w-[400px] md:h-[500px] shadow-glow rounded-2xl overflow-hidden">
-            <Image
-              src="/images/hero-app-preview.png"
-              alt="RiderConnect App Preview"
-              fill
-              sizes="(max-width: 768px) 300px, 400px"
-              priority
-              className="object-cover"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function CTASection() {
-  return (
-    <section className="w-full py-16 px-4 md:px-8 bg-primary text-primary-foreground">
-      <div className="container mx-auto text-center">
-        <h2 className="text-3xl md:text-4xl font-bold mb-6">
-          Ready to Connect with Your Group?
-        </h2>
-        <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
-          Join thousands of users already simplifying their group coordination
-        </p>
-        <Link
-          href="/signup"
-          className="bg-primary-foreground min-touch-target text-primary font-medium rounded-md py-3 px-8 text-center shadow-md hover:shadow-lg transition-all inline-block"
-        >
-          Sign Up Now
-        </Link>
-      </div>
-    </section>
-  );
-}
-
-import { Button } from "@/components/ui/button";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import {
-  MapPin,
-  Users,
-  MessageSquare,
-  Bell,
-  UserPlus,
-  Send,
+  MapPin, Users, MessageSquare, Bell, UserPlus, Send,
+  Shield, Wifi, WifiOff, Navigation, ChevronDown, Menu, X, Zap
 } from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { useUser } from "@clerk/nextjs";
-import { TypeAnimation } from "react-type-animation";
-import { CardSpotlight } from "@/components/ui/card-spotlight";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { useGroups } from "@/contexts/group-context";
-import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import { Button } from "@/components/ui/button";
 
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  delay: number;
+// ═══════════════════════════════════════════════════════════════
+// ANIMATED MAP BACKGROUND
+// ═══════════════════════════════════════════════════════════════
+
+function MapBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden opacity-[0.08] dark:opacity-[0.12]">
+      <svg width="100%" height="100%" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id="hero-grid" width="60" height="60" patternUnits="userSpaceOnUse">
+            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-teal" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#hero-grid)" />
+        <path d="M0,350 Q300,200 600,350 Q900,500 1200,350" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="20,10" opacity="0.6" className="text-teal" />
+        <path d="M0,400 Q300,250 600,400 Q900,550 1200,400" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="10,20" opacity="0.3" className="text-teal" />
+        {[[150, 280], [600, 320], [1050, 370]].map(([x, y], i) => (
+          <g key={i}>
+            <circle cx={x} cy={y} r="6" fill="currentColor" opacity="0.9" className="text-teal" />
+            <circle cx={x} cy={y} r="12" fill="none" stroke="currentColor" opacity="0.4" className="text-teal">
+              <animate attributeName="r" values="6;20;6" dur={`${2 + i * 0.5}s`} repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.4;0;0.4" dur={`${2 + i * 0.5}s`} repeatCount="indefinite" />
+            </circle>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({
-  icon,
-  title,
-  description,
-  delay,
-}) => (
-  <motion.div
-    variants={{
-      hidden: { opacity: 0, y: 20 },
-      visible: { opacity: 1, y: 0 },
-    }}
-    transition={{ duration: 0.6 }}
-  >
-    <CardSpotlight className="transition-all p-2 duration-300 hover:scale-105">
-      <div className="flex flex-col items-center space-y-1 sm:space-y-2 rounded-lg p-3 sm:p-6 shadow-sm relative group">
-        <motion.div
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ duration: 2, repeat: Infinity, delay }}
-          className="relative text-xl sm:text-2xl"
-        >
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-md group-hover:blur-xl transition-all duration-300" />
-          {icon}
-        </motion.div>
-        <h3 className="text-xs sm:text-sm font-semibold sm:font-bold z-20 text-gray-900 dark:text-white group-hover:text-primary transition-colors duration-300 whitespace-nowrap">
-          {title}
-        </h3>
+// ═══════════════════════════════════════════════════════════════
+// LIVE ALERT DEMO WIDGET
+// ═══════════════════════════════════════════════════════════════
 
-        <p className="text-xs sm:text-sm text-gray-500 text-center dark:text-gray-400 z-20 group-hover:text-gray-300 transition-colors duration-300">
-          {description}
-        </p>
-        <motion.div
-          className="absolute inset-0 bg-primary/5 rounded-lg -z-10"
-          whileHover={{ scale: 1.05 }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-    </CardSpotlight>
-  </motion.div>
-);
-
-export default function App() {
-  const userId = useUser().user?.id;
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [source, setSource] = useState("");
-  const [destination, setDestination] = useState("");
-  const [startDateTime, setStartDateTime] = useState("");
-  const [reachDateTime, setReachDateTime] = useState("");
-  const [validationErrors, setValidationErrors] = useState<{
-    startTime?: string;
-    reachTime?: string;
-  }>({});
-  const [suggestedSource, setSuggestedSource] = useState<Place[]>([]);
-  interface Place {
-    display_name: string;
-  }
-
-  const [suggestedDestination, setSuggestedDestination] = useState<Place[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const { createGroup } = useGroups();
-  const { toast } = useToast();
-
-  const LOCATION_IO_API_KEY = "pk.c08d4617cedabff7deb664bf446142d6";
-
-  const validateDateTimes = () => {
-    const errors: { startTime?: string; reachTime?: string } = {};
-
-    if (!startDateTime) {
-      errors.startTime = "Start date and time is required";
-    }
-
-    if (!reachDateTime) {
-      errors.reachTime = "Reach date and time is required";
-    }
-
-    if (startDateTime && reachDateTime) {
-      const startDate = new Date(startDateTime);
-      const reachDate = new Date(reachDateTime);
-
-      if (startDate >= reachDate) {
-        errors.reachTime = "Reach time must be after start time";
-      }
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const fetchSuggestion = async (place: string, sourceType: string) => {
-    if (place.length < 2) {
-      return;
-    }
-    try {
-      const url = `https://api.locationiq.com/v1/autocomplete?key=${LOCATION_IO_API_KEY}&q=${place}`;
-      const response = await axios.get(url);
-      if (sourceType === "source") {
-        setSuggestedSource(response.data);
-      } else {
-        setSuggestedDestination(response.data);
-      }
-      console.log(response.data);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const handleCreateGroup = async () => {
-    if (!newGroupName.trim() || !source.trim() || !destination.trim()) {
-      toast({
-        title: "Error",
-        description: "Please fill all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!validateDateTimes()) {
-      toast({
-        title: "Error",
-        description: "Please correct the date and time errors",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsCreating(true);
-    try {
-      const group = await createGroup(
-        newGroupName,
-        source,
-        destination,
-        new Date(startDateTime).toISOString(),
-        new Date(reachDateTime).toISOString()
-      );
-      toast({
-        title: "Success",
-        description: `Group "${group.name}" created with code ${group.code}!`,
-      });
-      setNewGroupName("");
-      setSource("");
-      setDestination("");
-      setReachDateTime("");
-      setStartDateTime("");
-      setValidationErrors({});
-      setCreateDialogOpen(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create group",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  useEffect(() => {
-    // Add gradient animation keyframes to the document
-    const style = document.createElement("style");
-    style.innerHTML = `
-      @keyframes gradientMove {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
+function LiveAlertDemo() {
+  const riders = [
+    { name: "You", lat: 50, lng: 50, color: "text-teal", bgColor: "bg-teal/20", borderColor: "border-teal", status: "online" },
+    { name: "Rahul", lat: 72, lng: 38, color: "text-amber", bgColor: "bg-amber/20", borderColor: "border-amber", status: "warn" },
+    { name: "Priya", lat: 45, lng: 65, color: "text-violet-400", bgColor: "bg-violet-400/20", borderColor: "border-violet-400", status: "online" },
+    { name: "Dev", lat: 58, lng: 28, color: "text-pink-400", bgColor: "bg-pink-400/20", borderColor: "border-pink-400", status: "online" },
+  ];
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 relative overflow-hidden">
-          <div className="container px-4 md:px-6 relative z-10">
-            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
-              <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8 }}
-                className="flex flex-col justify-center space-y-4"
-              >
-                <div className="space-y-2">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    className="relative z-20 backdrop-blur-sm rounded-xl p-1"
-                    style={{ perspective: "1000px" }}
-                  >
-                    <h1
-                      className="text-2xl font-bold tracking-tighter sm:text-5xl pb-1"
-                      style={{ lineHeight: 1.3 }}
-                    >
-                      <TypeAnimation
-                        sequence={[
-                          "Track Your Group Easily",
-                          2000,
-                          "Live Group Location Sharing",
-                          2000,
-                          "Stay Close, Stay Synced",
-                          2000,
-                          "Navigate as One Team",
-                          2000,
-                        ]}
-                        repeat={Infinity}
-                        cursor={true}
-                        preRenderFirstString={true}
-                        style={{
-                          whiteSpace: "pre-line",
-                          display: "block",
-                          background:
-                            "linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6)",
-                          backgroundSize: "200% 200%",
-                          animation: "gradient 8s ease infinite",
-                          WebkitBackgroundClip: "text",
-                          backgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                          textShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                          minHeight: "1.5em",
-                          paddingBottom: "0.15em",
-                          fontWeight: "700",
-                        }}
-                        speed={50}
-                        deletionSpeed={80}
-                      />
-                    </h1>
-                  </motion.div>
+    <div className="glass-card overflow-hidden relative">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-teal animate-blink" />
+          <span className="font-mono text-xs text-teal tracking-wider">LIVE TRACKING</span>
+        </div>
+        <span className="font-mono text-[11px] text-muted-foreground">4 RIDERS · GROUP: NH48</span>
+      </div>
 
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1.2, delay: 0.4 }}
-                    className="max-w-[600px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400"
-                  >
-                    Track your friends and family in real-time, chat with your
-                    group, and get alerts when someone strays too far.
-                  </motion.p>
-                </div>
+      {/* Map area */}
+      <div className="relative h-[220px] bg-teal/[0.03]">
+        {/* Grid overlay */}
+        <svg className="absolute inset-0 w-full h-full opacity-15">
+          <defs>
+            <pattern id="mapgrid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-teal" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#mapgrid)" />
+          <path d="M 30,160 Q 150,80 280,110 Q 380,130 450,80" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="6,4" opacity="0.6" className="text-teal" />
+          <path d="M 280,110 Q 310,145 340,170" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4,3" opacity="0.7" className="text-amber" />
+        </svg>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.8 }}
-                  className="flex flex-col gap-2 min-[400px]:flex-row"
-                >
-                  {userId ? (
-                    <Link href="/dashboard">
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="relative inline-block"
-                      >
-                        <Button
-                          size="lg"
-                          className="px-8 relative z-10 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary transition-all duration-300"
-                        >
-                          Go to Dashboard
-                          <motion.div
-                            className="absolute inset-0 bg-white/20 rounded-lg"
-                            initial={{ opacity: 0 }}
-                            whileHover={{ opacity: 1 }}
-                            transition={{ duration: 0.3 }}
-                          />
-                        </Button>
-                      </motion.div>
-                    </Link>
-                  ) : (
-                    <Link href="/sign-up">
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="relative inline-block"
-                      >
-                        <Button
-                          size="lg"
-                          className="px-8 relative z-10 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary transition-all duration-300"
-                        >
-                          Start Tracking Now
-                          <motion.div
-                            className="absolute inset-0 bg-white/20 rounded-lg"
-                            initial={{ opacity: 0 }}
-                            whileHover={{ opacity: 1 }}
-                            transition={{ duration: 0.3 }}
-                          />
-                        </Button>
-                      </motion.div>
-                    </Link>
-                  )}
-                  <Link href="#how-it-works">
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="relative inline-block"
-                    >
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="px-8 relative z-10  hover:bg-primary/50 transition-all duration-300"
-                      >
-                        Learn More
-                      </Button>
-                    </motion.div>
-                  </Link>
-                </motion.div>
-              </motion.div>
+        {/* Threshold radius */}
+        <div className="absolute left-[57%] top-[45%] w-20 h-20 rounded-full border border-dashed border-amber/40 -translate-x-1/2 -translate-y-1/2 bg-amber/5" />
 
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8 }}
-                className="mx-auto lg:mx-0 relative w-full max-w-[500px] aspect-video rounded-xl overflow-hidden shadow-2xl"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center backdrop-blur-sm">
-                  <div className="relative w-full h-full bg-cover bg-center">
-                    <motion.div
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.5 }}
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
-                      <div className="text-center p-6 rounded-lg bg-background/80 backdrop-blur-md shadow-lg transform hover:scale-105 transition-transform duration-300">
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
-                          <MapPin className="h-12 w-12 text-primary mx-auto mb-3" />
-                        </motion.div>
-                        <p className="font-medium text-lg">
-                          Real-time location tracking
-                        </p>
-                      </div>
-                    </motion.div>
-                  </div>
-                </div>
-              </motion.div>
+        {/* Riders */}
+        {riders.map((r, i) => (
+          <motion.div key={r.name}
+            initial={{ scale: 0 }} animate={{ scale: 1 }}
+            transition={{ delay: i * 0.15 }}
+            className="absolute -translate-x-1/2 -translate-y-1/2"
+            style={{ left: `${r.lat}%`, top: `${r.lng}%` }}
+          >
+            {r.status === "warn" && (
+              <div className={`absolute -inset-2 rounded-full border-2 ${r.borderColor} opacity-50`}
+                style={{ animation: "pulse-ring 1.5s ease-out infinite" }}
+              />
+            )}
+            <div className={`w-7 h-7 rounded-full ${r.bgColor} border-2 ${r.borderColor} flex items-center justify-center`}>
+              <span className={`text-[10px] font-bold font-mono ${r.color}`}>{r.name[0]}</span>
             </div>
+            <div className={`absolute top-[30px] left-1/2 -translate-x-1/2 bg-background/90 border ${r.borderColor}/30 rounded px-1.5 py-0.5`}>
+              <span className={`text-[9px] font-mono ${r.color} whitespace-nowrap`}>{r.name}</span>
+            </div>
+          </motion.div>
+        ))}
+
+        {/* Scan line */}
+        <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-teal to-transparent opacity-30" style={{ animation: "scanLine 3s linear infinite" }} />
+      </div>
+
+      {/* Alert */}
+      <motion.div
+        initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+        transition={{ delay: 1 }}
+        className="mx-3.5 my-3 px-3.5 py-2.5 bg-amber/10 border border-amber/30 rounded-lg flex items-center gap-2.5"
+      >
+        <Bell size={14} className="text-amber flex-shrink-0" />
+        <span className="text-xs font-mono text-amber">⚠ Rahul is 2.3 km away — exceeded threshold</span>
+      </motion.div>
+
+      {/* Footer stats */}
+      <div className="px-4 pb-3.5 pt-1 flex gap-5">
+        {[["4", "RIDERS"], ["~2km", "RADIUS"], ["12ms", "LATENCY"]].map(([v, l]) => (
+          <div key={l}>
+            <div className="font-mono text-[15px] text-teal font-semibold">{v}</div>
+            <div className="font-mono text-[9px] text-muted-foreground tracking-widest">{l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURE CARD
+// ═══════════════════════════════════════════════════════════════
+
+interface FeatureCardData {
+  icon: React.ElementType;
+  title: string;
+  desc: string;
+  color?: string;
+  badge?: string;
+}
+
+function FeatureCard({ icon: Icon, title, desc, color = "teal", badge }: FeatureCardData) {
+  const colorMap: Record<string, { text: string; bg: string; border: string }> = {
+    teal: { text: "text-teal", bg: "bg-teal/10", border: "border-teal/30" },
+    amber: { text: "text-amber", bg: "bg-amber/10", border: "border-amber/30" },
+    violet: { text: "text-violet-400", bg: "bg-violet-400/10", border: "border-violet-400/30" },
+    pink: { text: "text-pink-400", bg: "bg-pink-400/10", border: "border-pink-400/30" },
+  };
+  const c = colorMap[color] || colorMap.teal;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -4 }}
+      className="glass-card p-7 relative overflow-hidden group cursor-default"
+    >
+      {badge && (
+        <div className={`absolute top-4 right-4 ${c.bg} border ${c.border} rounded-full px-2.5 py-0.5`}>
+          <span className={`text-[10px] font-mono ${c.text} tracking-widest`}>{badge}</span>
+        </div>
+      )}
+      <div className={`w-11 h-11 rounded-xl ${c.bg} border ${c.border} flex items-center justify-center mb-4`}>
+        <Icon size={20} className={c.text} />
+      </div>
+      <h3 className="text-base font-semibold mb-2">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+      <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent ${c.text.replace('text-', 'via-')} to-transparent opacity-0 group-hover:opacity-40 transition-opacity duration-300`} />
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HOW IT WORKS STEP
+// ═══════════════════════════════════════════════════════════════
+
+function Step({ num, icon: Icon, title, desc, delay = 0 }: {
+  num: number; icon: React.ElementType; title: string; desc: string; delay?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay }}
+      viewport={{ once: true }}
+      className="flex flex-col items-center text-center gap-4"
+    >
+      <div className="relative">
+        <div className="w-[72px] h-[72px] rounded-full bg-teal/[0.08] border-[1.5px] border-teal/30 flex items-center justify-center relative z-[1]">
+          <Icon size={28} className="text-teal" />
+        </div>
+        <div className="absolute -top-2.5 -right-2.5 font-display text-[32px] text-teal/[0.15] z-0 leading-none">
+          {String(num).padStart(2, "0")}
+        </div>
+      </div>
+      <h3 className="text-lg font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed max-w-[220px]">{desc}</p>
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FAQ ITEM
+// ═══════════════════════════════════════════════════════════════
+
+function FAQItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="glass-card px-6 py-5 cursor-pointer mb-2.5"
+      onClick={() => setOpen(!open)}
+    >
+      <div className="flex justify-between items-center gap-4">
+        <span className="text-[15px] font-medium">{q}</span>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.3 }}>
+          <ChevronDown size={18} className="text-muted-foreground flex-shrink-0" />
+        </motion.div>
+      </div>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <p className="mt-3.5 text-sm text-muted-foreground leading-relaxed">{a}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATS TICKER
+// ═══════════════════════════════════════════════════════════════
+
+function StatsTicker() {
+  const items = [
+    "🛣  12,000+ GROUP RIDES TRACKED",
+    "📍  REAL-TIME ACCURACY <10 METERS",
+    "⚡  ALERTS IN <2 SECONDS",
+    "🌍  WORKS WORLDWIDE",
+    "🔒  END-TO-END ENCRYPTED",
+    "👥  FREE FOR UP TO 10 RIDERS",
+  ];
+  return (
+    <div className="overflow-hidden border-y border-border/50 py-3.5 bg-teal/[0.03]">
+      <div className="ticker-track">
+        {[...items, ...items].map((s, i) => (
+          <span key={i} className="font-mono text-xs text-teal tracking-wider">{s}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN LANDING PAGE
+// ═══════════════════════════════════════════════════════════════
+
+export default function LandingPage() {
+  const { user } = useUser();
+
+  return (
+    <main className="bg-background overflow-hidden">
+
+      {/* ══════════════════════ HERO ══════════════════════ */}
+      <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+        <MapBackground />
+
+        {/* Gradient orbs */}
+        <div className="absolute top-[20%] -left-[10%] w-[500px] h-[500px] rounded-full bg-gradient-radial from-teal/[0.06] to-transparent pointer-events-none" />
+        <div className="absolute bottom-[10%] -right-[5%] w-[400px] h-[400px] rounded-full bg-gradient-radial from-amber/[0.05] to-transparent pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-6 md:px-8 w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center relative z-10">
+
+          {/* Left — Copy */}
+          <div>
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="inline-flex items-center gap-2 bg-teal/[0.08] border border-teal/25 rounded-full px-3.5 py-1.5 mb-6"
+            >
+              <Zap size={12} className="text-teal" />
+              <span className="font-mono text-[11px] text-teal tracking-wider">REAL-TIME GROUP TRACKING</span>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-[88px] font-bold tracking-tight leading-[0.95] mb-7"
+            >
+              NEVER<br />
+              <span className="text-teal">LOSE</span><br />
+              YOUR PACK
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-[440px] mb-9"
+            >
+              RiderConnect keeps your entire group in sync — whether you&apos;re on a highway convoy, mountain trail, or city commute. Get instant alerts the moment someone deviates from the route.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="flex gap-3.5 flex-wrap"
+            >
+              <Link href={user ? "/dashboard" : "/sign-up"}>
+                <Button size="lg" className="bg-teal text-teal-foreground hover:bg-teal/90 shadow-glow-teal font-semibold px-7 gap-2 text-[15px] h-12">
+                  <Navigation size={16} />
+                  {user ? "Go to Dashboard" : "Start Tracking Free"}
+                </Button>
+              </Link>
+              <Link href="#how-it-works">
+                <Button size="lg" variant="outline" className="border-border/60 hover:border-teal/40 hover:text-teal font-medium px-7 text-[15px] h-12">
+                  See How It Works
+                </Button>
+              </Link>
+            </motion.div>
+
+            {/* Trust signals */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="flex gap-6 mt-9 flex-wrap"
+            >
+              {[["12k+", "Riders"], ["99.9%", "Uptime"], ["<2s", "Alert Latency"]].map(([v, l]) => (
+                <div key={l}>
+                  <div className="font-mono text-xl font-semibold">{v}</div>
+                  <div className="text-xs text-muted-foreground">{l}</div>
+                </div>
+              ))}
+            </motion.div>
           </div>
 
-          {/* Add floating elements */}
+          {/* Right — Live Demo */}
           <motion.div
-            className="absolute top-1/4 left-10 w-8 h-8 rounded-full bg-primary/20"
-            animate={{
-              y: [0, -20, 0],
-              opacity: [0.5, 1, 0.5],
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-          <motion.div
-            className="absolute bottom-1/4 right-10 w-12 h-12 rounded-full bg-primary/30"
-            animate={{
-              y: [0, 20, 0],
-              opacity: [0.3, 0.7, 0.3],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        </section>
+            initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.9, delay: 0.4 }}
+            className="hidden lg:block"
+          >
+            <LiveAlertDemo />
+          </motion.div>
+        </div>
 
-        {/* Key Features Section */}
-        <section
-          id="features"
-          className="w-full py-12 md:py-24 bg-muted/50 relative overflow-hidden"
+        {/* Scroll cue */}
+        <motion.div
+          animate={{ y: [0, 8, 0] }} transition={{ duration: 2, repeat: Infinity }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
         >
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-grid-pattern opacity-50" />
+          <ChevronDown size={22} className="text-muted-foreground" />
+        </motion.div>
+      </section>
 
-          <div className="container px-4 md:px-6 relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="flex flex-col items-center justify-center space-y-4 text-center"
-            >
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/50">
-                  Key Features
-                </h2>
-                <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-                  Everything you need to stay connected with your group
-                </p>
-              </div>
-            </motion.div>
+      {/* ══════════════════════ STATS TICKER ══════════════════════ */}
+      <StatsTicker />
 
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={{
-                visible: {
-                  transition: {
-                    staggerChildren: 0.1,
-                  },
-                },
-              }}
-              className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6"
-            >
-              {/* Real-Time Tracking */}
-              <FeatureCard
-                icon={
-                  <MapPin className="h-6 w-6 sm:h-8 sm:w-8 text-primary z-20 relative" />
-                }
-                title="Real-Time Tracking"
-                description="See everyone's real-time location updated in an interactive map on ride"
-                delay={0}
-              />
-
-              {/* Distance Alerts */}
-              <FeatureCard
-                icon={
-                  <Bell className="h-6 w-6 sm:h-8 sm:w-8 text-primary z-20 relative" />
-                }
-                title="Distance Alerts"
-                description="Get notified when someone exceeds a specified distance from the group"
-                delay={0.2}
-              />
-
-              {/* Group Chat */}
-              <FeatureCard
-                icon={
-                  <MessageSquare className="h-6 w-6 sm:h-8 sm:w-8 text-primary z-20 relative" />
-                }
-                title="Group Chat"
-                description="Communicate with your group without leaving the app"
-                delay={0.4}
-              />
-
-              {/* Easy Group Creation */}
-              <FeatureCard
-                icon={
-                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-primary z-20 relative" />
-                }
-                title="Easy Group Creation"
-                description="Create groups and invite friends with a simple link or code"
-                delay={0.6}
-              />
-
-              {/* Network Loss Handling */}
-              <FeatureCard
-                icon={
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-6 w-6 sm:h-8 sm:w-8 text-primary z-20 relative"
-                  >
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                  </svg>
-                }
-                title="Network Loss Handling"
-                description="Automatically notify the group when someone loses connection"
-                delay={0.8}
-              />
-
-              {/* Unique Avatars */}
-              <FeatureCard
-                icon={
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-6 w-6 sm:h-8 sm:w-8 text-primary z-20 relative"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <circle cx="12" cy="10" r="3" />
-                    <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
-                  </svg>
-                }
-                title="Unique Avatars"
-                description="Easily identify group members with customizable avatars"
-                delay={1.0}
-              />
-            </motion.div>
-          </div>
-        </section>
-
-        {/* How It Works Section  */}
-        <section id="how-it-works" className="w-full py-12 md:py-24">
-          <div className="container px-4 md:px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="flex flex-col items-center justify-center space-y-4 text-center"
-            >
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
-                  How It Works
-                </h2>
-                <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-                  Simple steps to stay connected with your group
-                </p>
-              </div>
-            </motion.div>
-
-            <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-3 mt-8">
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                viewport={{ once: true }}
-                whileHover={{ scale: 1.03 }}
-                className="flex flex-col items-center space-y-4 p-4"
-              >
-                <motion.div
-                  className="relative h-20 w-20"
-                  whileHover={{ scale: 1.1 }}
-                >
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-primary/20"
-                    initial={{ scale: 0.8, opacity: 0.5 }}
-                    animate={{
-                      scale: [0.8, 1.1, 0.8],
-                      opacity: [0.5, 0.8, 0.5],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  />
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-primary/40"
-                    initial={{ scale: 0.85, opacity: 0.5 }}
-                    animate={{
-                      scale: [0.85, 1.05, 0.85],
-                      opacity: [0.5, 0.7, 0.5],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 0.2,
-                    }}
-                  />
-                  <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-white shadow-lg">
-                    <div className="font-bold text-xl">1</div>
-                    <motion.div
-                      className="absolute -bottom-1 -right-1 h-8 w-8 flex items-center justify-center rounded-full bg-white shadow-md z-20"
-                      whileHover={{ rotate: 360 }}
-                      transition={{ duration: 0.8 }}
-                    >
-                      <Users className="h-5 w-5 text-primary" />
-                    </motion.div>
-                  </div>
-                </motion.div>
-                <h3 className="text-xl font-bold">Create a Group</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  Sign up and create a new group for your trip or event
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                viewport={{ once: true }}
-                whileHover={{ scale: 1.03 }}
-                className="flex flex-col items-center space-y-4 p-4"
-              >
-                <motion.div
-                  className="relative h-20 w-20"
-                  whileHover={{ scale: 1.1 }}
-                >
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-primary/20"
-                    initial={{ scale: 0.8, opacity: 0.5 }}
-                    animate={{
-                      scale: [0.8, 1.1, 0.8],
-                      opacity: [0.5, 0.8, 0.5],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 0.3,
-                    }}
-                  />
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-primary/40"
-                    initial={{ scale: 0.85, opacity: 0.5 }}
-                    animate={{
-                      scale: [0.85, 1.05, 0.85],
-                      opacity: [0.5, 0.7, 0.5],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 0.5,
-                    }}
-                  />
-                  <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-white shadow-lg">
-                    <div className="font-bold text-xl">2</div>
-                    <motion.div
-                      className="absolute -bottom-1 -right-1 h-8 w-8 flex items-center justify-center rounded-full bg-white shadow-md z-20"
-                      whileHover={{ rotate: 360 }}
-                      transition={{ duration: 0.8 }}
-                    >
-                      <UserPlus className="h-5 w-5 text-primary" />
-                    </motion.div>
-                  </div>
-                </motion.div>
-                <h3 className="text-xl font-bold">Invite Friends</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  Share the invite link or code with your friends and family
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-                viewport={{ once: true }}
-                whileHover={{ scale: 1.03 }}
-                className="flex flex-col items-center space-y-4 p-4"
-              >
-                <motion.div
-                  className="relative h-20 w-20"
-                  whileHover={{ scale: 1.1 }}
-                >
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-primary/20"
-                    initial={{ scale: 0.8, opacity: 0.5 }}
-                    animate={{
-                      scale: [0.8, 1.1, 0.8],
-                      opacity: [0.5, 0.8, 0.5],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 0.6,
-                    }}
-                  />
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-primary/40"
-                    initial={{ scale: 0.85, opacity: 0.5 }}
-                    animate={{
-                      scale: [0.85, 1.05, 0.85],
-                      opacity: [0.5, 0.7, 0.5],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 0.8,
-                    }}
-                  />
-                  <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-white shadow-lg">
-                    <div className="font-bold text-xl">3</div>
-                    <motion.div
-                      className="absolute -bottom-1 -right-1 h-8 w-8 flex items-center justify-center rounded-full bg-white shadow-md z-20"
-                      whileHover={{ rotate: 360 }}
-                      transition={{ duration: 0.8 }}
-                    >
-                      <MapPin className="h-5 w-5 text-primary" />
-                    </motion.div>
-                  </div>
-                </motion.div>
-                <h3 className="text-xl font-bold">Start Tracking</h3>
-                <p className="text-sm text-gray-500 text-center dark:text-gray-400">
-                  Everyone's location appears on the map in real-time
-                </p>
-              </motion.div>
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-              viewport={{ once: true }}
-              className="flex justify-center mt-12"
-            >
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="flex items-center space-x-2 text-primary"
-              >
-                <Send className="h-4 w-4" />
-                <Link
-                  href="/dashboard"
-                  className="text-sm font-medium hover:underline"
-                >
-                  Ready to get started? Create your account now
-                </Link>
-              </motion.div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* FAQs Section */}
-        <section id="faq" className="w-full py-12 md:py-24 bg-muted/50">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-6 text-center">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
-                  Frequently Asked Questions
-                </h2>
-                <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-                  Common questions about our group tracking system
-                </p>
-              </div>
-
-              <div className="mx-auto w-full max-w-3xl space-y-4 mt-4">
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="faq-1">
-                    <AccordionTrigger className="text-left text-lg font-semibold">
-                      Is my location data secure?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
-                      Yes, your location is only shared with members of your
-                      group and is encrypted during transmission. We use
-                      industry-standard encryption protocols to ensure your data
-                      remains private and secure. Additionally, you can pause
-                      location sharing at any time.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="faq-2">
-                    <AccordionTrigger className="text-left text-lg font-semibold">
-                      How accurate is the location tracking?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
-                      Our system uses GPS data from your device, which is
-                      typically accurate to within 5-10 meters in optimal
-                      conditions. Accuracy may vary based on your device,
-                      environment (urban areas, indoors, etc.), and satellite
-                      availability. We also implement smoothing algorithms to
-                      improve location reliability.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="faq-3">
-                    <AccordionTrigger className="text-left text-lg font-semibold">
-                      Does it work internationally?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
-                      Yes, our service works worldwide as long as you have an
-                      internet connection. There are no geographical
-                      restrictions, making it perfect for international travel,
-                      events, and adventures. Data roaming charges from your
-                      carrier may apply when traveling internationally.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="faq-5">
-                    <AccordionTrigger className="text-left text-lg font-semibold">
-                      Can I use the app without data connection?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
-                      While an internet connection is required for real-time
-                      location sharing, our app can store your group's last
-                      known locations when offline. Once you reconnect, your
-                      location will update automatically, and you'll receive any
-                      missed updates from your group members.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="faq-6">
-                    <AccordionTrigger className="text-left text-lg font-semibold">
-                      Is there a limit to group size?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 dark:text-gray-400 pt-2 pb-4 text-base text-left">
-                      Our free plan supports groups of up to 10 members. For
-                      larger groups or events, we offer premium plans that
-                      support up to 100 members per group with additional
-                      features like custom branding and enhanced analytics.
-                      Contact us for special event requirements beyond these
-                      limits.
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Ready to  get started section */}
-        <section className="w-full py-12 md:py-24 bg-gradient-to-b from-transparent via-muted/50 to-transparent">
-          <div className="container px-4 md:px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="flex flex-col items-center justify-center space-y-4 text-center"
-            >
-              <div className="space-y-2 relative">
-                <div className="absolute inset-0 blur-3xl bg-primary/5 rounded-full" />
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl relative">
-                  Ready to Get Started?
-                </h2>
-                <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-                  {userId
-                    ? "Create your first group and start tracking together"
-                    : "Join thousands of groups who stay connected with GroupTrack"}
-                </p>
-              </div>
-              <motion.div
-                className="flex flex-col gap-2 min-[400px]:flex-row"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {userId ? (
-                  <Dialog
-                    open={createDialogOpen}
-                    onOpenChange={setCreateDialogOpen}
-                  >
-                    <DialogTrigger asChild>
-                      <Button
-                        size="lg"
-                        className="px-8 relative group overflow-hidden"
-                      >
-                        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary via-primary/80 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        <span className="relative">Create a Group</span>
-                        <motion.div
-                          className="absolute inset-0 rounded-lg ring-2 ring-primary/50"
-                          initial={false}
-                          whileHover={{ scale: 1.15 }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create a New Group Ride</DialogTitle>
-                        <DialogDescription>
-                          Set up your ride and invite others.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="group-name">Group Name</Label>
-                          <Input
-                            id="group-name"
-                            placeholder="e.g., Road Trip 2025"
-                            value={newGroupName}
-                            onChange={(e) => setNewGroupName(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="source">Source</Label>
-                          <Input
-                            id="source"
-                            placeholder="e.g., New York"
-                            value={source}
-                            onChange={(e) => {
-                              setSource(e.target.value);
-                              fetchSuggestion(e.target.value, e.target.id);
-                            }}
-                            required
-                          />
-                          {suggestedSource.length > 0 && source.length > 0 && (
-                            <div className="flex flex-col border border-border rounded-md max-h-200 overflow-y-auto z-10 bg-background">
-                              {suggestedSource.map((place, index) => (
-                                <div
-                                  className="p-2 hover:bg-muted cursor-pointer"
-                                  key={index}
-                                  onClick={() => {
-                                    setSource(place.display_name);
-                                    setSuggestedSource([]);
-                                  }}
-                                >
-                                  {place.display_name}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="destination">Destination</Label>
-                          <Input
-                            id="destination"
-                            placeholder="e.g., Boston"
-                            value={destination}
-                            onChange={(e) => {
-                              setDestination(e.target.value);
-                              fetchSuggestion(e.target.value, e.target.id);
-                            }}
-                            required
-                          />
-                          {suggestedDestination.length > 0 &&
-                            destination.length > 0 && (
-                              <div className="flex flex-col border border-border rounded-md max-h-200 overflow-y-auto z-10 bg-background">
-                                {suggestedDestination.map((place, index) => (
-                                  <div
-                                    className="p-2 hover:bg-muted cursor-pointer"
-                                    key={index}
-                                    onClick={() => {
-                                      setDestination(place.display_name);
-                                      setSuggestedDestination([]);
-                                    }}
-                                  >
-                                    {place.display_name}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="startDateTime">
-                            Start Date and Time
-                          </Label>
-                          <Input
-                            id="startDateTime"
-                            type="datetime-local"
-                            value={startDateTime}
-                            onChange={(e) => {
-                              setStartDateTime(e.target.value);
-                              // Clear validation error when user changes the input
-                              if (validationErrors.startTime) {
-                                setValidationErrors({
-                                  ...validationErrors,
-                                  startTime: undefined,
-                                });
-                              }
-                            }}
-                            className={
-                              validationErrors.startTime ? "border-red-500" : ""
-                            }
-                            required
-                          />
-                          {validationErrors.startTime && (
-                            <p className="text-sm text-red-500">
-                              {validationErrors.startTime}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label htmlFor="reachDateTime">
-                            Reach Date and Time
-                          </Label>
-                          <Input
-                            id="reachDateTime"
-                            type="datetime-local"
-                            value={reachDateTime}
-                            onChange={(e) => {
-                              setReachDateTime(e.target.value);
-                              // Clear validation error when user changes the input
-                              if (validationErrors.reachTime) {
-                                setValidationErrors({
-                                  ...validationErrors,
-                                  reachTime: undefined,
-                                });
-                              }
-                            }}
-                            className={
-                              validationErrors.reachTime ? "border-red-500" : ""
-                            }
-                            required
-                          />
-                          {validationErrors.reachTime && (
-                            <p className="text-sm text-red-500">
-                              {validationErrors.reachTime}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          onClick={handleCreateGroup}
-                          disabled={isCreating}
-                        >
-                          {isCreating ? "Creating..." : "Create Group"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                ) : (
-                  <Link href="/sign-up">
-                    <Button
-                      size="lg"
-                      className="px-8 relative group overflow-hidden"
-                    >
-                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary via-primary/80 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      <span className="relative">Sign Up Free</span>
-                      <motion.div
-                        className="absolute inset-0 rounded-lg ring-2 ring-primary/50"
-                        initial={false}
-                        whileHover={{ scale: 1.15 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    </Button>
-                  </Link>
-                )}
-              </motion.div>
-            </motion.div>
-          </div>
-        </section>
-      </main>
-      <footer className="border-t">
-        <div className="container flex flex-col gap-4 py-10 md:flex-row md:gap-8 md:py-12">
-          <div className="flex flex-col gap-2 md:gap-4 lg:gap-6">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">RiderConnect</span>
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Stay connected with your group, wherever you go.
+      {/* ══════════════════════ FEATURES ══════════════════════ */}
+      <section id="features" className="py-20 md:py-28 px-6 md:px-8">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <p className="font-mono text-xs text-teal tracking-[3px] mb-3">CAPABILITIES</p>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+              BUILT FOR THE ROAD
+            </h2>
+            <p className="text-muted-foreground max-w-lg mx-auto text-[15px] leading-relaxed">
+              Every feature designed around the real challenges of group travel — from mountain highways to urban streets.
             </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <FeatureCard icon={Bell} color="amber" badge="CORE"
+              title="Threshold Distance Alerts"
+              desc="Set a custom radius — anyone who strays beyond it triggers an instant notification to the entire group. No one gets left behind." />
+            <FeatureCard icon={MapPin} color="teal" badge="CORE"
+              title="Live Route Tracking"
+              desc="See every rider's real-time position on an interactive map, updated every few seconds with sub-10-meter GPS accuracy." />
+            <FeatureCard icon={WifiOff} color="violet"
+              title="Network Loss Detection"
+              desc="When a rider loses signal, the group is alerted immediately with their last known position — not left guessing." />
+            <FeatureCard icon={MessageSquare} color="pink"
+              title="In-Ride Group Chat"
+              desc="Text your group without switching apps. Hands-free voice messages coming soon for safer communication while riding." />
+            <FeatureCard icon={Shield} color="teal"
+              title="Privacy Controls"
+              desc="Pause your location at any time. Location data is end-to-end encrypted and never sold or shared outside your group." />
+            <FeatureCard icon={Users} color="amber"
+              title="Instant Invite Codes"
+              desc="Share a 6-character code or link — riders join in seconds without needing an account download first." />
           </div>
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Product</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="#features" className="hover:underline">
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Download
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Company</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="#" className="hover:underline">
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Careers
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Resources</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Support
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Legal</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:underline">
-                    Cookie Policy
-                  </Link>
-                </li>
-              </ul>
+        </div>
+      </section>
+
+      {/* ══════════════════════ HOW IT WORKS ══════════════════════ */}
+      <section id="how-it-works" className="py-20 md:py-28 px-6 md:px-8 bg-card/50">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <p className="font-mono text-xs text-teal tracking-[3px] mb-3">WORKFLOW</p>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold tracking-tight">
+              RIDE IN 3 STEPS
+            </h2>
+          </motion.div>
+
+          <div className="relative">
+            {/* Connector line */}
+            <div className="absolute top-9 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-teal to-transparent opacity-25 hidden md:block" />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+              <Step num={1} icon={Users} title="Create a Group" delay={0}
+                desc="Name your group, set the route, define the threshold distance, and pick a start time." />
+              <Step num={2} icon={UserPlus} title="Invite Riders" delay={0.2}
+                desc="Share the 6-character code or link. Friends join in one tap — no app download required for guests." />
+              <Step num={3} icon={Navigation} title="Ride Together" delay={0.4}
+                desc="Everyone's position appears live on your map. Alerts fire the instant anyone drifts too far." />
             </div>
           </div>
         </div>
-        <div className="border-t py-6">
-          <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              © 2025 RiderConnect. All rights reserved.
+      </section>
+
+      {/* ══════════════════════ THRESHOLD EXPLAINER ══════════════════════ */}
+      <section className="py-20 md:py-28 px-6 md:px-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.7 }}
+          >
+            <p className="font-mono text-xs text-amber tracking-[3px] mb-3">THE KEY FEATURE</p>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold tracking-tight leading-[1] mb-5">
+              THRESHOLD<br /><span className="text-teal">DISTANCE</span><br />ALERTS
+            </h2>
+            <p className="text-muted-foreground text-[15px] leading-relaxed mb-6">
+              Set a maximum separation distance for your group — say, 2 km. The moment any rider exceeds that distance from the main cluster, every member gets an alert with the deviated rider&apos;s name and last known location.
             </p>
-            <div className="flex gap-4">
-              <Link
-                href="#"
-                className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-                </svg>
-                <span className="sr-only">Facebook</span>
-              </Link>
-              <Link
-                href="#"
-                className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
-                </svg>
-                <span className="sr-only">Twitter</span>
-              </Link>
-              <Link
-                href="#"
-                className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-                </svg>
-                <span className="sr-only">Instagram</span>
-              </Link>
+            <div className="flex flex-col gap-3.5">
+              {[
+                { label: "Instant push + in-app notifications", color: "bg-teal" },
+                { label: "Shows exact deviation in km", color: "bg-teal" },
+                { label: "Works even when rider loses signal", color: "bg-amber" },
+                { label: "Configurable per group, per ride", color: "bg-teal" },
+              ].map(({ label, color }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <div className={`w-1.5 h-1.5 rounded-full ${color} flex-shrink-0`} />
+                  <span className="text-sm">{label}</span>
+                </div>
+              ))}
             </div>
+          </motion.div>
+
+          {/* Visual */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.7 }}
+            className="glass-card p-8 text-center"
+          >
+            <div className="relative h-[260px] flex items-center justify-center">
+              {[120, 88, 56].map((size, i) => (
+                <div key={size} className="absolute rounded-full" style={{
+                  width: size, height: size,
+                  border: `1px solid hsl(var(--teal) / ${0.1 + i * 0.1})`,
+                  background: i === 2 ? "hsl(var(--teal) / 0.05)" : "transparent",
+                }} />
+              ))}
+              {/* Center rider */}
+              <div className="w-9 h-9 rounded-full bg-teal/20 border-2 border-teal flex items-center justify-center z-[2]">
+                <span className="text-xs font-bold font-mono text-teal">G</span>
+              </div>
+              {/* Outside rider */}
+              <motion.div
+                animate={{ x: [60, 75, 60], y: [30, 40, 30] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute"
+              >
+                <div className="relative">
+                  <div className="w-7 h-7 rounded-full bg-amber/20 border-2 border-amber flex items-center justify-center">
+                    <span className="text-[10px] font-bold font-mono text-amber">R</span>
+                  </div>
+                  <div className="absolute -inset-1 rounded-full border-2 border-amber" style={{ animation: "pulse-ring 1.5s ease-out infinite" }} />
+                </div>
+              </motion.div>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                <span className="font-mono text-[11px] text-amber">THRESHOLD EXCEEDED</span>
+              </div>
+            </div>
+            <div className="glass-card px-4 py-3 text-left mt-2">
+              <span className="font-mono text-[11px] text-amber">⚠ Rahul is 2.3 km away from group center</span>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════ FAQ ══════════════════════ */}
+      <section id="faq" className="py-20 md:py-28 px-6 md:px-8 bg-card/50">
+        <div className="max-w-2xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.6 }}
+            className="text-center mb-12"
+          >
+            <p className="font-mono text-xs text-teal tracking-[3px] mb-3">FAQ</p>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold tracking-tight">COMMON QUESTIONS</h2>
+          </motion.div>
+
+          <FAQItem q="Is my location data secure?"
+            a="Yes. Location data is encrypted in transit using TLS and is only ever shared with members inside your group. You can pause sharing at any time, and we never sell location data to third parties." />
+          <FAQItem q="How accurate is the tracking?"
+            a="We use your device's GPS, which is typically accurate to within 5–10 meters in open areas. We apply smoothing algorithms to reduce jitter, so the map stays clean even in urban canyons." />
+          <FAQItem q="What happens when someone loses mobile signal?"
+            a="The app stores the rider's last known location and immediately notifies the group with a 'signal lost' alert. Once connectivity is restored, the location updates automatically." />
+          <FAQItem q="Can I use this for a solo trip?"
+            a="Absolutely. You can create a solo group and share your live location with family or friends who don't need to install anything — they can view your position via a web link." />
+          <FAQItem q="How many riders can I track at once?"
+            a="The free plan supports up to 10 riders per group. Premium plans support 100+ members, with advanced analytics, custom branding, and priority support for large events." />
+          <FAQItem q="Does it work internationally?"
+            a="Yes — RiderConnect works anywhere with GPS and mobile data. There are no geo-restrictions. Standard carrier data roaming rates may apply when abroad." />
+        </div>
+      </section>
+
+      {/* ══════════════════════ CTA ══════════════════════ */}
+      <section className="py-20 md:py-28 px-6 md:px-8 text-center relative overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-[600px] h-[400px] rounded-full bg-gradient-radial from-teal/[0.07] to-transparent" />
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }} transition={{ duration: 0.7 }}
+          className="relative z-10"
+        >
+          <p className="font-mono text-xs text-teal tracking-[3px] mb-4">GET STARTED TODAY</p>
+          <h2 className="font-display text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-5">
+            READY TO ROLL?
+          </h2>
+          <p className="text-muted-foreground max-w-md mx-auto text-base leading-relaxed mb-10">
+            Join thousands of riders who never lose sight of their group. Free to start, no credit card needed.
+          </p>
+          <Link href={user ? "/dashboard" : "/sign-up"}>
+            <Button size="lg" className="bg-teal text-teal-foreground hover:bg-teal/90 shadow-glow-teal font-semibold px-10 gap-2 text-base h-13">
+              <Navigation size={18} />
+              {user ? "Go to Dashboard" : "Create Free Account"}
+            </Button>
+          </Link>
+        </motion.div>
+      </section>
+
+      {/* ══════════════════════ FOOTER ══════════════════════ */}
+      <footer className="border-t border-border/50 pt-12 pb-8 px-6 md:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
+            {/* Brand */}
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2.5 mb-3">
+                <Navigation size={20} className="text-teal" />
+                <span className="font-display text-xl font-bold tracking-tight">
+                  RIDER<span className="text-teal">CONNECT</span>
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+                Stay connected with your group, wherever the road takes you.
+              </p>
+            </div>
+            {/* Link columns */}
+            {[
+              ["Product", ["Features", "Pricing", "Download", "Changelog"]],
+              ["Company", ["About", "Blog", "Careers", "Press"]],
+              ["Support", ["Documentation", "Contact", "Status", "Community"]],
+              ["Legal", ["Privacy", "Terms", "Cookies", "Security"]],
+            ].map(([heading, links]) => (
+              <div key={heading as string}>
+                <h4 className="font-mono text-xs font-semibold tracking-wider mb-3.5">{heading as string}</h4>
+                <ul className="flex flex-col gap-2.5">
+                  {(links as string[]).map(l => (
+                    <li key={l}>
+                      <a href="#" className="text-xs text-muted-foreground hover:text-teal transition-colors duration-200">{l}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <hr className="hr-glow" />
+          <div className="mt-6 flex justify-between items-center flex-wrap gap-3">
+            <span className="font-mono text-xs text-muted-foreground">© 2025 RiderConnect. All rights reserved.</span>
+            <span className="font-mono text-xs text-muted-foreground">Made for riders, by riders. 🏍</span>
           </div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }

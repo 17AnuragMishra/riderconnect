@@ -1,20 +1,52 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
 import "./globals.css"
 import Navbar from "@/components/navbar"
 import { Toaster } from "@/components/ui/toaster"
 import { GroupProvider } from "@/contexts/group-context"
 import { ThemeProvider } from "@/components/theme-provider"
-// import { Analytics } from "@vercel/analytics/next";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+})
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500"],
+})
 
 export const metadata: Metadata = {
-  title: "GroupTrack - Real-Time Group Tracking System",
+  title: "RiderConnect — Real-Time Group Tracking for Riders",
   description:
-    "Track your friends and family in real-time, chat with your group, and get alerts when someone strays too far.",
+    "Never lose your pack. Track your group in real-time, get instant alerts when someone deviates, and chat without switching apps. Free for up to 10 riders.",
+  keywords: [
+    "group tracking",
+    "rider tracking",
+    "real-time GPS",
+    "motorcycle group",
+    "ride together",
+    "location sharing",
+  ],
+  openGraph: {
+    title: "RiderConnect — Never Lose Your Pack",
+    description:
+      "Real-time group tracking for riders. Instant alerts, live maps, in-ride chat.",
+    type: "website",
+    locale: "en_US",
+  },
 }
 
 export default function RootLayout({
@@ -24,19 +56,18 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         </head>
-        <body className={inter.className}>
-            <ThemeProvider>
-              <GroupProvider>
-                <Navbar />
-                {children}
-                {/* <Analytics /> */}
-                <Toaster />
-              </GroupProvider>
-            </ThemeProvider>
+        <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
+          <ThemeProvider>
+            <GroupProvider>
+              <Navbar />
+              {children}
+              <Toaster />
+            </GroupProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

@@ -80,11 +80,11 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const R = 6371; // Earth's radius in kilometers
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
@@ -253,18 +253,18 @@ export default function Dashboard() {
 
   const getGroupMetrics = async (source: string, destination: string) => {
     const key = `${source}-${destination}`;
-    
+
     // Check if we already have cached metrics
     if (groupMetrics.has(key)) {
       return groupMetrics.get(key);
     }
-    
+
     // Use simple hash-based calculation for demo purposes
     const hash = (source + destination).split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
-    
+
     const fallbackMetrics = {
       distance: Math.abs(100 + (hash % 400)),
       duration: {
@@ -272,7 +272,7 @@ export default function Dashboard() {
         minutes: Math.abs(hash % 60)
       }
     };
-    
+
     setGroupMetrics(prev => new Map(prev).set(key, fallbackMetrics));
     return fallbackMetrics;
   };
@@ -361,7 +361,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex-1 container max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 md:py-12">
+    <div className="flex-1 container max-w-7xl mx-auto pt-20 pb-6 px-4 sm:px-6 lg:px-8 md:pt-24 md:pb-12">
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold tracking-tight">

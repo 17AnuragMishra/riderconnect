@@ -515,7 +515,7 @@ export default function GroupPage() {
   }
 
   return (
-    <div className="flex max-h-screen flex-col">
+    <div className="flex h-[100dvh] pt-16 flex-col">
       <header className="sticky top-16 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4">
@@ -569,7 +569,7 @@ export default function GroupPage() {
               </TooltipProvider>
             </div>
           </div>
-          <div className="flex items-center gap-2">            
+          <div className="flex items-center gap-2">
             <Dialog
               open={inviteDialogOpen}
               onOpenChange={(open) => {
