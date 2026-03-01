@@ -33,6 +33,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
+import { fetchRouteMetrics } from "@/lib/mapUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,19 +66,6 @@ interface Group {
   members: Member[];
   createdBy: string;
   createdAt?: string;
-}
-
-// Simple distance calculation using Haversine formula
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }
 
 function formatDistance(distance: number): string {
@@ -137,31 +125,22 @@ const GroupsPage = () => {
     };
   }, [user, isLoaded, activeGroups, archivedGroups, router, toast]);
 
-  // Calculate consistent metrics based on source and destination
   const getGroupMetrics = async (source: string, destination: string) => {
     const key = `${source}-${destination}`;
 
-    // Check if we already have cached metrics
     if (groupMetrics.has(key)) {
       return groupMetrics.get(key);
     }
 
-    // Use simple hash-based calculation for demo purposes
-    const hash = (source + destination).split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-
-    const fallbackMetrics = {
-      distance: Math.abs(100 + (hash % 400)),
-      duration: {
-        hours: Math.abs(1 + (hash % 9)),
-        minutes: Math.abs(hash % 60)
-      }
-    };
-
-    setGroupMetrics(prev => new Map(prev).set(key, fallbackMetrics));
-    return fallbackMetrics;
+    try {
+      const metrics = await fetchRouteMetrics(source, destination);
+      setGroupMetrics((prev) => new Map(prev).set(key, metrics));
+      return metrics;
+    } catch {
+      const fallback = { distance: 0, duration: { hours: 0, minutes: 0 } };
+      setGroupMetrics((prev) => new Map(prev).set(key, fallback));
+      return fallback;
+    }
   };
 
   // Load metrics for all groups on component mount

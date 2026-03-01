@@ -1,7 +1,7 @@
 "use client";
 
 import "../[id]/chat.css";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ import ChatTab from "@/components/Chat/ChatTab";
 import MemberTab from "@/components/Member/MemberTab";
 import axios from "axios";
 import io from "socket.io-client";
-import { BackgroundBeams } from "@/components/ui/background-beams";
+import { calculateDistance } from "@/lib/utils";
 import ShareComponent from "./share";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -119,6 +119,8 @@ export default function GroupPage() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const lastUpdateTimeRef = useRef<number>(0);
   const resetInviteDialogState = () => {
     setQrCodeError(false);
     setShareLoading(null);
@@ -129,6 +131,10 @@ export default function GroupPage() {
   const [groupLocations, setGroupLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
+  const groupLocationsArray = useMemo(
+    () => Array.from(groupLocations.entries()),
+    [groupLocations]
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -185,6 +191,35 @@ export default function GroupPage() {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        const now = Date.now();
+        const last = lastLocationRef.current;
+
+        let shouldUpdate = false;
+
+        if (!last) {
+          shouldUpdate = true;
+        } else {
+          const distance = calculateDistance(
+            last.latitude,
+            last.longitude,
+            latitude,
+            longitude
+          );
+
+          // Only update if user has moved at least 10 meters
+          if (distance >= 10) {
+            shouldUpdate = true;
+          }
+        }
+
+        // Additionally rate-limit updates to at most once every 5 seconds
+        if (!shouldUpdate && now - lastUpdateTimeRef.current < 5000) {
+          return;
+        }
+
+        lastLocationRef.current = { latitude, longitude };
+        lastUpdateTimeRef.current = now;
+
         setLocation({ latitude, longitude });
         socket.emit("updateLocation", {
           groupId,
@@ -870,14 +905,12 @@ export default function GroupPage() {
               </TabsList>
             </div>
           </div>
-          {/* Optional: Uncomment if BackgroundBeams is needed */}
-          <BackgroundBeams className="fixed inset-0 pointer-events-none z-0" />
           <div className="container py-6 px-4 flex-1 overflow-hidden">
             <TabsContent value="map" className="mt-0 h-full">
               {location ? (
                 <MapComponent
                   location={location}
-                  groupLocations={Array.from(groupLocations.entries())}
+                  groupLocations={groupLocationsArray}
                   members={group?.members}
                   source={group?.source}
                   destination={group?.destination}

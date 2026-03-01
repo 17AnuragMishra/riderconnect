@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 interface Message {
   _id: string;
   groupId: string;
@@ -25,10 +27,11 @@ interface ChatTabProps {
   members?: { clerkId: string; name: string; avatar?: string }[];
 }
 
-const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL, {
-  auth: {
-    userId: "clerk id",
-  },
+const socket: Socket = io(API_BASE_URL, {
+  autoConnect: false,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
 });
 
 function ChatTab({ groupId, members }: ChatTabProps) {
@@ -41,7 +44,7 @@ function ChatTab({ groupId, members }: ChatTabProps) {
   const [tagging, setTagging] = useState(false);
   const [space, setSpace] = useState(true);
   const fetchMessages = async (groupId: string): Promise<Message[]> => {
-    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/groups/messages/group/${groupId}`);
+    const res = await axios.get(`${API_BASE_URL}/groups/messages/group/${groupId}`);
     console.log(res.data);
     setMessages(res.data.data);
     return res.data.data;
@@ -60,7 +63,22 @@ function ChatTab({ groupId, members }: ChatTabProps) {
     if (!user || !groupId || initialized.current) return;
 
     socket.connect();
-    socket.emit("join", { clerkId: user.id, groupId });
+
+    const handleConnect = () => {
+      socket.emit("join", { clerkId: user.id, groupId });
+    };
+
+    const handleReconnect = () => {
+      socket.emit("join", { clerkId: user.id, groupId });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("reconnect", handleReconnect);
+
+    if (socket.connected) {
+      socket.emit("join", { clerkId: user.id, groupId });
+    }
+
     initialized.current = true;
 
     socket.on("receiveMessage", (message: Message) => {
@@ -89,8 +107,12 @@ function ChatTab({ groupId, members }: ChatTabProps) {
     });
 
     return () => {
+      socket.off("connect", handleConnect);
+      socket.off("reconnect", handleReconnect);
       socket.off("receiveMessage");
       socket.off("notification");
+      socket.disconnect();
+      initialized.current = false;
     };
   }, [user, groupId]);
 

@@ -552,7 +552,7 @@ export default function LandingPage() {
             Join thousands of riders who never lose sight of their group. Free to start, no credit card needed.
           </p>
           <Link href={user ? "/dashboard" : "/sign-up"}>
-            <Button size="lg" className="bg-teal text-teal-foreground hover:bg-teal/90 shadow-glow-teal font-semibold px-10 gap-2 text-base h-13">
+            <Button size="lg" className="bg-teal text-teal-foreground hover:bg-teal/90 shadow-glow-teal font-semibold px-8 py-2 gap-2 text-base h-13 hover:transition-shadow">
               <Navigation size={18} />
               {user ? "Go to Dashboard" : "Create Free Account"}
             </Button>
@@ -597,7 +597,7 @@ export default function LandingPage() {
           </div>
           <hr className="hr-glow" />
           <div className="mt-6 flex justify-between items-center flex-wrap gap-3">
-            <span className="font-mono text-xs text-muted-foreground">© 2025 RiderConnect. All rights reserved.</span>
+            <span className="font-mono text-xs text-muted-foreground">© 2026 RiderConnect. All rights reserved.</span>
             <span className="font-mono text-xs text-muted-foreground">Made for riders, by riders. 🏍</span>
           </div>
         </div>

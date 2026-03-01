@@ -7,6 +7,7 @@ import Navbar from "@/components/navbar"
 import { Toaster } from "@/components/ui/toaster"
 import { GroupProvider } from "@/contexts/group-context"
 import { ThemeProvider } from "@/components/theme-provider"
+import PushNotificationControl from "@/components/notifications/push-notification-control"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -65,6 +66,7 @@ export default function RootLayout({
             <GroupProvider>
               <Navbar />
               {children}
+              <PushNotificationControl />
               <Toaster />
             </GroupProvider>
           </ThemeProvider>

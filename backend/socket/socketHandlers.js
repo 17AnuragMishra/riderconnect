@@ -5,6 +5,7 @@ import UserLocation from '../models/UserLocation.js';
 import Notification from '../models/Notification.js';
 import { getDistance } from 'geolib';
 import mongoose from 'mongoose';
+import { sendPushToUser, sendPushToUserIds } from '../utils/webPush.js';
 
 const setupSocket = (io) => {
   const onlineUsers = new Map();
@@ -177,6 +178,19 @@ const setupSocket = (io) => {
         });
         if (notifications.length > 0) {
           await Notification.insertMany(notifications);
+          const recipients = notifications.map((n) => n.userId);
+          sendPushToUserIds(recipients, {
+            title: `${clerkName} sent a message`,
+            body: content,
+            icon: '/placeholder-logo.png',
+            badge: '/placeholder-logo.png',
+            tag: `message-${groupIdStr}`,
+            url: `/dashboard/group/${groupIdStr}`,
+            urgency: 'high',
+            timestamp: Date.now(),
+          }).catch((error) => {
+            console.error('Push send error (message):', error);
+          });
         }
       } catch (err) {
         console.error('Send message error:', err);
@@ -198,15 +212,15 @@ const setupSocket = (io) => {
           { upsert: true, new: true }
         );
         io.to(groupIdStr).emit('locationUpdate', { ...location._doc, isOnline: onlineUsers.has(clerkId) });
+
         const groupLocations = await UserLocation.find({ groupId });
-        io.to(groupIdStr).emit('groupLocations', groupLocations.map(loc => ({
-          ...loc._doc,
-          isOnline: onlineUsers.has(loc.clerkId),
-        })));
 
         const group = await Group.findById(groupId);
         if (!group) return;
+
+        const threshold = group.distanceThreshold || 1000;
         const notifications = [];
+
         groupLocations.forEach((otherLoc) => {
           if (otherLoc.clerkId !== clerkId && otherLoc.lat && otherLoc.lng) {
             const distance = getDistance(
@@ -215,15 +229,21 @@ const setupSocket = (io) => {
             );
             const alertKey = `${clerkId}-${otherLoc.clerkId}`;
             const lastAlert = distanceAlertCooldown.get(alertKey) || 0;
-            if (distance > 1000 && Date.now() - lastAlert > 60000) {
-              const member = group.members.find(m => m.clerkId === otherLoc.clerkId);
+
+            if (distance > threshold && Date.now() - lastAlert > 60000) {
+              const distanceKm = distance / 1000;
+              const distanceText =
+                distanceKm >= 1
+                  ? `${distanceKm.toFixed(1)} km`
+                  : `${distance.toFixed(0)} m`;
+
               const notification = {
                 userId: otherLoc.clerkId,
                 groupId: groupIdStr,
                 senderId: clerkId,
                 senderName: group.members.find(m => m.clerkId === clerkId)?.name,
                 groupName: group.name,
-                message: `You are ${distance}m away from ${group.members.find(m => m.clerkId === clerkId)?.name}`,
+                message: `You are ${distanceText} away from ${group.members.find(m => m.clerkId === clerkId)?.name}`,
                 type: 'distance',
                 priority: 'high',
               };
@@ -241,6 +261,20 @@ const setupSocket = (io) => {
         });
         if (notifications.length > 0) {
           await Notification.insertMany(notifications);
+          await Promise.all(
+            notifications.map((notification) =>
+              sendPushToUser(notification.userId, {
+                title: 'Distance Alert',
+                body: notification.message,
+                icon: '/placeholder-logo.png',
+                badge: '/placeholder-logo.png',
+                tag: `distance-${groupIdStr}`,
+                url: `/dashboard/group/${groupIdStr}`,
+                urgency: 'high',
+                timestamp: Date.now(),
+              })
+            )
+          );
         }
       } catch (err) {
         console.error('Update location error:', err);

@@ -15,9 +15,12 @@ import {
 import "leaflet/dist/leaflet.css";
 import { useUser } from "@clerk/nextjs";
 import L from "leaflet";
+import { Info } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
+import { cn, calculateDistance } from "@/lib/utils";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 interface MapComponentProps {
   location: { latitude: number; longitude: number };
@@ -29,13 +32,40 @@ interface MapComponentProps {
 
 type LatLng = [number, number];
 
-function createAvatarIcon(avatarUrl?: string, isOnline: boolean = false) {
+const coordinateCache = new Map<string, LatLng>();
+type RoutePath = {
+  coords: LatLng[];
+  distance: number;
+  duration: number;
+};
+
+type CachedRoute = {
+  primary: RoutePath;
+  alternatives?: RoutePath[];
+};
+
+const routeCache = new Map<string, CachedRoute>();
+const profileMetricsCache = new Map<string, { duration: number; distance: number }>();
+
+function createAvatarIcon(_avatarUrl?: string, isOnline: boolean = false) {
+  const emoji = "😐";
+
   return L.divIcon({
     html: `
-      <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; border: 2px solid ${
-        isOnline ? "#00ff00" : "#ff0000"
-      };">
-        <img src="${avatarUrl || "/default-avatar.png"}" style="width: 100%; height: 100%; object-fit: cover;" />
+      <div
+        style="
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: 2px solid ${isOnline ? "#22c55e" : "#9ca3af"};
+          background: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+        "
+      >
+        <span>${emoji}</span>
       </div>
     `,
     className: "",
@@ -89,10 +119,14 @@ function UserMarker({
   position,
   avatar,
   isOnline,
+  progressLabel,
+  destinationEtas,
 }: {
   position: LatLng;
   avatar?: string;
   isOnline?: boolean;
+  progressLabel?: string | null;
+  destinationEtas?: { car: string; bike: string; foot: string } | null;
 }) {
   const map = useMap();
   const markerRef = useRef<L.Marker | null>(null);
@@ -109,7 +143,24 @@ function UserMarker({
       icon={createAvatarIcon(avatar, isOnline || false)}
       ref={markerRef}
     >
-      <Popup>Your Location</Popup>
+      <Popup>
+        <div className="space-y-1">
+          <div>Your Location</div>
+          {progressLabel && (
+            <div className="text-xs text-muted-foreground">
+              {progressLabel}
+            </div>
+          )}
+          {destinationEtas && (
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              <div>To destination:</div>
+              <div>Car: {destinationEtas.car}</div>
+              <div>Bike: {destinationEtas.bike}</div>
+              <div>Foot: {destinationEtas.foot}</div>
+            </div>
+          )}
+        </div>
+      </Popup>
     </Marker>
   );
 }
@@ -129,43 +180,368 @@ export default function MapComponent({
   const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [srcCoords, setSrcCoords] = useState<LatLng | null>(null);
   const [dstCoords, setDstCoords] = useState<LatLng | null>(null);
+  const [routeInfo, setRouteInfo] = useState<{
+    distance: number;
+    duration: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadingProgress, setLoadingProgress] = useState<number>(0);
+  const [availableRoutes, setAvailableRoutes] = useState<RoutePath[]>([]);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+  const [destinationTravelTimes, setDestinationTravelTimes] = useState<{
+    car: number | null;
+    bike: number | null;
+    foot: number | null;
+  }>({ car: null, bike: null, foot: null });
+  const [showEtaInfo, setShowEtaInfo] = useState(false);
 
   async function fetchCoordinates(place: string): Promise<LatLng | null> {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        place
-      )}`
-    );
-    const data = await res.json();
-    if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    const key = place.trim().toLowerCase();
+
+    if (coordinateCache.has(key)) {
+      return coordinateCache.get(key)!;
+    }
+
+    // Try backend geocode with caching first
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/map/geocode?q=${encodeURIComponent(place)}`
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data.lat === "number" && typeof data.lng === "number") {
+          const coords: LatLng = [data.lat, data.lng];
+          coordinateCache.set(key, coords);
+          return coords;
+        }
+      } else {
+        const text = await res.text().catch(() => "");
+        console.error(
+          "Backend geocode failed:",
+          place,
+          res.status,
+          text || res.statusText
+        );
+      }
+    } catch (error) {
+      console.error("Backend geocode error:", place, error);
+    }
+
+    // Fallback: call Nominatim directly (previous behavior)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          place
+        )}`
+      );
+
+      if (!res.ok) {
+        console.error(
+          "Fallback geocode failed:",
+          place,
+          res.status,
+          res.statusText
+        );
+        return null;
+      }
+
+      const data = await res.json();
+
+      if (Array.isArray(data) && data.length > 0) {
+        const coords: LatLng = [
+          parseFloat(data[0].lat),
+          parseFloat(data[0].lon),
+        ];
+        if (Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+          coordinateCache.set(key, coords);
+          return coords;
+        }
+      }
+    } catch (error) {
+      console.error("Fallback geocode error:", place, error);
+    }
+
     return null;
   }
   
   const LoadingOverlay = () => (
-    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm dark:bg-background/90 bg-grid-pattern" style={{ height: '100%', width: '100%' }}>
+    <div
+      className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm dark:bg-background/90 bg-grid-pattern"
+      style={{ height: "100%", width: "100%" }}
+    >
       <div className="animate-pulse-gentle flex flex-col items-center space-y-4 p-6 max-w-xs w-full">
         <div className="shadow-glow rounded-lg bg-card p-4 w-full">
-          <div className="text-center mb-3 text-sm font-medium text-primary">Loading Map Data</div>
+          <div className="text-center mb-3 text-sm font-medium text-primary">
+            Loading Map Data
+          </div>
           <Progress value={loadingProgress} className="h-2 w-full" />
           <div className="mt-2 text-xs text-muted-foreground text-center">
-            {loadingProgress < 100 ? 'Fetching route information...' : 'Rendering map...'}
+            {loadingProgress < 100
+              ? "Fetching route information..."
+              : "Rendering map..."}
           </div>
         </div>
       </div>
     </div>
   );
+
+  function formatDistanceFromMeters(meters: number): string {
+    if (!Number.isFinite(meters) || meters < 0) return "";
+    if (meters < 1000) {
+      return `${Math.round(meters)} m`;
+    }
+    const km = meters / 1000;
+    return `${km.toFixed(1)} km`;
+  }
+
+  function formatDurationFromSeconds(seconds: number | null): string {
+    if (seconds == null || !Number.isFinite(seconds) || seconds < 0) {
+      return "—";
+    }
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 1) return "<1 min";
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins === 0 ? `${hours} h` : `${hours} h ${mins} min`;
+  }
+
+  function estimateDurationFromSpeed(
+    distanceMeters: number,
+    speedKmPerHour: number
+  ): number | null {
+    if (
+      !Number.isFinite(distanceMeters) ||
+      distanceMeters <= 0 ||
+      !Number.isFinite(speedKmPerHour) ||
+      speedKmPerHour <= 0
+    ) {
+      return null;
+    }
+    const speedMetersPerSecond = (speedKmPerHour * 1000) / 3600;
+    return distanceMeters / speedMetersPerSecond;
+  }
+
+  function formatEtaFromDistance(metersFromStart: number): string | null {
+    if (!routeInfo || !routeInfo.distance || !routeInfo.duration) return null;
+    const avgSpeed = routeInfo.distance / routeInfo.duration; // meters per second
+    if (!Number.isFinite(avgSpeed) || avgSpeed <= 0) return null;
+    const seconds = metersFromStart / avgSpeed;
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 1) return "<1 min";
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins === 0 ? `${hours} h` : `${hours} h ${mins} min`;
+  }
+
+  function getProgressLabel(lat: number, lng: number): string | null {
+    if (!srcCoords) return null;
+    const distanceFromStart = calculateDistance(lat, lng, srcCoords[0], srcCoords[1]);
+    const distanceText = formatDistanceFromMeters(distanceFromStart);
+    if (!distanceText) return null;
+    return `${distanceText} from start`;
+  }
+
+  async function fetchRouteMetricsByProfile(
+    from: LatLng,
+    to: LatLng,
+    profile: "driving" | "cycling" | "walking"
+  ): Promise<{ duration: number; distance: number } | null> {
+    const key = `${profile}:${from[0]},${from[1]}-${to[0]},${to[1]}`;
+    const cachedMetrics = profileMetricsCache.get(key);
+    if (cachedMetrics) {
+      return cachedMetrics;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        fromLat: String(from[0]),
+        fromLng: String(from[1]),
+        toLat: String(to[0]),
+        toLng: String(to[1]),
+        profile,
+      });
+
+      const res = await fetch(`${API_BASE_URL}/map/route?${params.toString()}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (typeof data.duration === "number" && typeof data.distance === "number") {
+        const metrics = { duration: data.duration, distance: data.distance };
+        profileMetricsCache.set(key, metrics);
+        return metrics;
+      }
+    } catch (error) {
+      console.error(`Failed to fetch ${profile} metrics`, error);
+    }
+
+    return null;
+  }
+
   async function fetchRoute(from: LatLng, to: LatLng) {
-    const res = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`
-    );
-    const data = await res.json();
-    if (data.routes.length > 0) {
-      const coords = data.routes[0].geometry.coordinates.map(
-        ([lng, lat]: number[]) => [lat, lng]
+    const key = `${from[0]},${from[1]}-${to[0]},${to[1]}`;
+
+    if (routeCache.has(key)) {
+      const cached = routeCache.get(key)!;
+      const routes: RoutePath[] = [
+        cached.primary,
+        ...(cached.alternatives || []),
+      ];
+      setAvailableRoutes(routes);
+      setSelectedRouteIndex(0);
+      setRouteCoords(routes[0].coords);
+      setRouteInfo({
+        distance: routes[0].distance,
+        duration: routes[0].duration,
+      });
+      return;
+    }
+
+    // First try backend route with caching
+    try {
+      const params = new URLSearchParams({
+        fromLat: String(from[0]),
+        fromLng: String(from[1]),
+        toLat: String(to[0]),
+        toLng: String(to[1]),
+      });
+
+      const res = await fetch(`${API_BASE_URL}/map/route?${params.toString()}`);
+
+      if (res.ok) {
+        const data = await res.json();
+
+        const buildRoutePath = (geometry: any, distance: number, duration: number): RoutePath | null => {
+          if (
+            !geometry ||
+            !Array.isArray(geometry.coordinates) ||
+            geometry.coordinates.length === 0
+          ) {
+            return null;
+          }
+
+          const coords: LatLng[] = geometry.coordinates.map(
+            ([lng, lat]: number[]) => [lat, lng]
+          );
+
+          return {
+            coords,
+            distance: typeof distance === "number" ? distance : 0,
+            duration: typeof duration === "number" ? duration : 0,
+          };
+        };
+
+        const primary = buildRoutePath(
+          data.geometry,
+          data.distance,
+          data.duration
+        );
+
+        const alternatives: RoutePath[] =
+          Array.isArray(data.alternatives) && data.alternatives.length > 0
+            ? data.alternatives
+                .map((alt: any) =>
+                  buildRoutePath(alt.geometry, alt.distance, alt.duration)
+                )
+                .filter(Boolean) as RoutePath[]
+            : [];
+
+        if (primary) {
+          const routes: RoutePath[] = [primary, ...alternatives];
+
+          setAvailableRoutes(routes);
+          setSelectedRouteIndex(0);
+          setRouteCoords(primary.coords);
+          setRouteInfo({
+            distance: primary.distance,
+            duration: primary.duration,
+          });
+
+          routeCache.set(key, {
+            primary,
+            alternatives: alternatives.length ? alternatives : undefined,
+          });
+          return;
+        }
+      } else {
+        const text = await res.text().catch(() => "");
+        console.error(
+          "Backend route failed:",
+          res.status,
+          text || res.statusText
+        );
+      }
+    } catch (error) {
+      console.error("Backend route error:", error);
+    }
+
+    // Fallback: call OSRM directly (previous behavior)
+    try {
+      const res = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&alternatives=true&steps=false`
       );
-      setRouteCoords(coords);
+
+      if (!res.ok) {
+        console.error(
+          "Fallback route failed:",
+          res.status,
+          res.statusText
+        );
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.routes && Array.isArray(data.routes) && data.routes.length > 0) {
+        const toRoutePath = (route: any): RoutePath | null => {
+          if (
+            !route.geometry ||
+            !Array.isArray(route.geometry.coordinates) ||
+            route.geometry.coordinates.length === 0
+          ) {
+            return null;
+          }
+
+          const coords: LatLng[] = route.geometry.coordinates.map(
+            ([lng, lat]: number[]) => [lat, lng]
+          );
+
+          return {
+            coords,
+            distance: typeof route.distance === "number" ? route.distance : 0,
+            duration: typeof route.duration === "number" ? route.duration : 0,
+          };
+        };
+
+        const primaryRoute = toRoutePath(data.routes[0]);
+        const alternativeRoutes: RoutePath[] =
+          data.routes
+            .slice(1)
+            .map((r: any) => toRoutePath(r))
+            .filter(Boolean) as RoutePath[];
+
+        if (primaryRoute) {
+          const routes: RoutePath[] = [primaryRoute, ...alternativeRoutes];
+
+          setAvailableRoutes(routes);
+          setSelectedRouteIndex(0);
+          setRouteCoords(primaryRoute.coords);
+          setRouteInfo({
+            distance: primaryRoute.distance,
+            duration: primaryRoute.duration,
+          });
+
+          routeCache.set(key, {
+            primary: primaryRoute,
+            alternatives: alternativeRoutes.length
+              ? alternativeRoutes
+              : undefined,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Fallback route error:", error);
     }
   }
 
@@ -197,6 +573,67 @@ export default function MapComponent({
     }
     getRoute();
   }, [source, destination]);
+
+  useEffect(() => {
+    const loadModeDurations = async () => {
+      if (!dstCoords) {
+        setDestinationTravelTimes({ car: null, bike: null, foot: null });
+        return;
+      }
+
+      const from: LatLng = [location.latitude, location.longitude];
+      const [carMetrics, bikeMetrics, footMetrics] = await Promise.all([
+        fetchRouteMetricsByProfile(from, dstCoords, "driving"),
+        fetchRouteMetricsByProfile(from, dstCoords, "cycling"),
+        fetchRouteMetricsByProfile(from, dstCoords, "walking"),
+      ]);
+
+      const directDistance = calculateDistance(
+        from[0],
+        from[1],
+        dstCoords[0],
+        dstCoords[1]
+      );
+      const baseDistanceMeters =
+        carMetrics?.distance ||
+        bikeMetrics?.distance ||
+        footMetrics?.distance ||
+        directDistance * 1.35;
+
+      const carFallback = estimateDurationFromSpeed(baseDistanceMeters, 38);
+      const bikeFallback = estimateDurationFromSpeed(baseDistanceMeters, 16);
+      const footFallback = estimateDurationFromSpeed(baseDistanceMeters, 5);
+
+      let car = carMetrics?.duration ?? carFallback;
+      let bike = bikeMetrics?.duration ?? bikeFallback;
+      let foot = footMetrics?.duration ?? footFallback;
+
+      if (car != null && bike != null) {
+        const ratio = Math.abs(car - bike) / Math.max(car, 1);
+        if (ratio < 0.08) {
+          bike = bikeFallback ?? Math.max(bike, car * 1.5);
+        }
+      }
+
+      if (car != null && foot != null) {
+        const ratio = Math.abs(car - foot) / Math.max(car, 1);
+        if (ratio < 0.2) {
+          foot = footFallback ?? Math.max(foot, car * 2.8);
+        }
+      }
+
+      if (car != null && bike != null && bike <= car) {
+        bike = Math.max(bike, car * 1.2);
+      }
+      if (bike != null && foot != null && foot <= bike) {
+        foot = Math.max(foot, bike * 1.5);
+      }
+
+      setDestinationTravelTimes({ car, bike, foot });
+    };
+
+    loadModeDurations();
+  }, [location.latitude, location.longitude, dstCoords]);
 
   useEffect(() => {
     if (isInitialLoad) {
@@ -238,6 +675,62 @@ export default function MapComponent({
           minHeight: 'inherit'
         }}
       >
+        {availableRoutes.length > 1 && (
+          <div className="absolute top-3 left-3 z-30 space-y-2">
+            <div className="rounded-md bg-background/90 shadow-lg border px-3 py-2 text-xs">
+              <div className="font-semibold mb-1">Routes</div>
+              <div className="flex gap-2">
+                {availableRoutes.map((route, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className={cn(
+                      "px-2 py-1 rounded border text-[11px] leading-tight",
+                      index === selectedRouteIndex
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-foreground border-muted hover:bg-muted/60"
+                    )}
+                    onClick={() => {
+                      setSelectedRouteIndex(index);
+                      setRouteCoords(route.coords);
+                      setRouteInfo({
+                        distance: route.distance,
+                        duration: route.duration,
+                      });
+                    }}
+                  >
+                    <div>Route {index + 1}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {formatDistanceFromMeters(route.distance)} •{" "}
+                      {formatEtaFromDistance(route.distance) ?? "—"}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="absolute top-3 right-3 z-30 flex flex-col items-end gap-2">
+          <button
+            type="button"
+            onClick={() => setShowEtaInfo((prev) => !prev)}
+            className="h-9 w-9 rounded-full border bg-background/90 shadow-lg flex items-center justify-center hover:bg-muted/80 transition"
+            aria-label="Toggle ETA details"
+            title="ETA details"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+          {showEtaInfo && (
+            <div className="rounded-md bg-background/90 shadow-lg border px-3 py-2 text-xs min-w-[180px]">
+              <div className="font-semibold mb-1">ETA to Destination</div>
+              <div className="space-y-1 text-muted-foreground">
+                <div>Car: {formatDurationFromSeconds(destinationTravelTimes.car)}</div>
+                <div>Bike: {formatDurationFromSeconds(destinationTravelTimes.bike)}</div>
+                <div>Foot: {formatDurationFromSeconds(destinationTravelTimes.foot)}</div>
+              </div>
+            </div>
+          )}
+        </div>
         {!mapReady && <LoadingOverlay />}
         <MapContainer 
           center={userPos} 
@@ -300,14 +793,35 @@ export default function MapComponent({
                 </Marker>
               )}
 
-              {routeCoords.length > 0 && (
-                <Polyline positions={routeCoords} pathOptions={{ color: "blue" }} />
-              )}
+              {availableRoutes.length > 0
+                ? availableRoutes.map((route, index) => (
+                    <Polyline
+                      key={index}
+                      positions={route.coords}
+                      pathOptions={{
+                        color: index === selectedRouteIndex ? "#2563eb" : "#9ca3af",
+                        weight: index === selectedRouteIndex ? 5 : 3,
+                        opacity: index === selectedRouteIndex ? 0.9 : 0.6,
+                      }}
+                    />
+                  ))
+                : routeCoords.length > 0 && (
+                    <Polyline
+                      positions={routeCoords}
+                      pathOptions={{ color: "blue" }}
+                    />
+                  )}
 
               <UserMarker
                 position={userPos}
                 avatar={members?.find((m) => m.clerkId === user?.id)?.avatar}
                 isOnline={members?.find((m) => m.clerkId === user?.id)?.isOnline}
+                progressLabel={getProgressLabel(userPos[0], userPos[1])}
+                destinationEtas={{
+                  car: formatDurationFromSeconds(destinationTravelTimes.car),
+                  bike: formatDurationFromSeconds(destinationTravelTimes.bike),
+                  foot: formatDurationFromSeconds(destinationTravelTimes.foot),
+                }}
               />
 
               {groupLocations.map(([clerkId, { lat, lng }]) => (
@@ -320,8 +834,21 @@ export default function MapComponent({
                   )}
                 >
                   <Popup>
-                    {members?.find((m) => m.clerkId === clerkId)?.name || clerkId} -{" "}
-                    {members?.find((m) => m.clerkId === clerkId)?.isOnline ? "Online" : "Offline"}
+                    <div className="space-y-1">
+                      <div>
+                        {members?.find((m) => m.clerkId === clerkId)?.name ||
+                          clerkId}{" "}
+                        -{" "}
+                        {members?.find((m) => m.clerkId === clerkId)?.isOnline
+                          ? "Online"
+                          : "Offline"}
+                      </div>
+                      {srcCoords && (
+                        <div className="text-xs text-muted-foreground">
+                          {getProgressLabel(lat, lng)}
+                        </div>
+                      )}
+                    </div>
                   </Popup>
                 </Marker>
               ))}
