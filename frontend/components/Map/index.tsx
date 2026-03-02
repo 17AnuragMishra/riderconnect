@@ -18,6 +18,7 @@ import L from "leaflet";
 import { Info } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn, calculateDistance } from "@/lib/utils";
+import { parseCoordinatesFromLocationInput } from "@/lib/locationParsing";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -28,6 +29,8 @@ interface MapComponentProps {
   members?: { clerkId: string; name: string; avatar?: string; isOnline?: boolean }[];
   source: string;
   destination: string;
+  sourceCoords?: { lat: number; lng: number };
+  destinationCoords?: { lat: number; lng: number };
 }
 
 type LatLng = [number, number];
@@ -171,9 +174,23 @@ export default function MapComponent({
   members,
   source,
   destination,
+  sourceCoords,
+  destinationCoords,
 }: MapComponentProps) {
   const { user } = useUser();
   const userPos: LatLng = [location.latitude, location.longitude];
+  const sourceFromText = parseCoordinatesFromLocationInput(source);
+  const destinationFromText = parseCoordinatesFromLocationInput(destination);
+  const hasExactSource =
+    (sourceCoords &&
+      Number.isFinite(sourceCoords.lat) &&
+      Number.isFinite(sourceCoords.lng)) ||
+    !!sourceFromText;
+  const hasExactDestination =
+    (destinationCoords &&
+      Number.isFinite(destinationCoords.lat) &&
+      Number.isFinite(destinationCoords.lng)) ||
+    !!destinationFromText;
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   
@@ -196,6 +213,11 @@ export default function MapComponent({
   const [showEtaInfo, setShowEtaInfo] = useState(false);
 
   async function fetchCoordinates(place: string): Promise<LatLng | null> {
+    const parsedCoords = parseCoordinatesFromLocationInput(place);
+    if (parsedCoords) {
+      return [parsedCoords.lat, parsedCoords.lng];
+    }
+
     const key = place.trim().toLowerCase();
 
     if (coordinateCache.has(key)) {
@@ -551,10 +573,18 @@ export default function MapComponent({
       setLoadingProgress(10);
       
       try {
-        const from = await fetchCoordinates(source);
+        const from =
+          sourceCoords && Number.isFinite(sourceCoords.lat) && Number.isFinite(sourceCoords.lng)
+            ? ([sourceCoords.lat, sourceCoords.lng] as LatLng)
+            : await fetchCoordinates(source);
         setLoadingProgress(40);
         
-        const to = await fetchCoordinates(destination);
+        const to =
+          destinationCoords &&
+          Number.isFinite(destinationCoords.lat) &&
+          Number.isFinite(destinationCoords.lng)
+            ? ([destinationCoords.lat, destinationCoords.lng] as LatLng)
+            : await fetchCoordinates(destination);
         setLoadingProgress(70);
         
         if (from && to) {
@@ -572,7 +602,7 @@ export default function MapComponent({
       }
     }
     getRoute();
-  }, [source, destination]);
+  }, [source, destination, sourceCoords, destinationCoords]);
 
   useEffect(() => {
     const loadModeDurations = async () => {
@@ -675,8 +705,9 @@ export default function MapComponent({
           minHeight: 'inherit'
         }}
       >
+
         {availableRoutes.length > 1 && (
-          <div className="absolute top-3 left-3 z-30 space-y-2">
+          <div className="absolute top-5 left-3 z-30 space-y-2">
             <div className="rounded-md bg-background/90 shadow-lg border px-3 py-2 text-xs">
               <div className="font-semibold mb-1">Routes</div>
               <div className="flex gap-2">

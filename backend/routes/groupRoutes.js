@@ -7,14 +7,36 @@ import Notification from '../models/Notification.js';
 const router = express.Router();
 
 router.post('/create', async (req, res) => {
-  const { name, source, destination, startTime, reachTime, clerkId, clerkName } = req.body;
+  const {
+    name,
+    source,
+    destination,
+    sourceCoords,
+    destinationCoords,
+    startTime,
+    reachTime,
+    clerkId,
+    clerkName,
+  } = req.body;
+
+  const normalizedSourceCoords =
+    sourceCoords && Number.isFinite(sourceCoords.lat) && Number.isFinite(sourceCoords.lng)
+      ? { lat: sourceCoords.lat, lng: sourceCoords.lng }
+      : undefined;
+  const normalizedDestinationCoords =
+    destinationCoords && Number.isFinite(destinationCoords.lat) && Number.isFinite(destinationCoords.lng)
+      ? { lat: destinationCoords.lat, lng: destinationCoords.lng }
+      : undefined;
+
   try {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     const group = new Group({
       name,
       code,
       source,
+      sourceCoords: normalizedSourceCoords,
       destination,
+      destinationCoords: normalizedDestinationCoords,
       startTime: new Date(startTime).toISOString(),
       reachTime: new Date(reachTime).toISOString(),
       members: [{ clerkId, name: clerkName }],
@@ -55,7 +77,16 @@ router.post('/join', async (req, res) => {
       }));
     await Notification.insertMany(notifications);
     req.app.get('io').to(group._id.toString()).emit('groupUpdate', group);
-    res.json({ id: group._id, name: group.name, code, source: group.source, destination: group.destination, members: group.members });
+    res.json({
+      id: group._id,
+      name: group.name,
+      code,
+      source: group.source,
+      sourceCoords: group.sourceCoords,
+      destination: group.destination,
+      destinationCoords: group.destinationCoords,
+      members: group.members,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

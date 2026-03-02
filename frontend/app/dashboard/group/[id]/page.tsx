@@ -38,6 +38,7 @@ import MemberTab from "@/components/Member/MemberTab";
 import axios from "axios";
 import io from "socket.io-client";
 import { calculateDistance } from "@/lib/utils";
+import { getBestCurrentLocation, isAcceptableAccuracy } from "@/lib/geolocation";
 import ShareComponent from "./share";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -69,7 +70,9 @@ interface Group {
   name: string;
   code: string;
   source: string;
+  sourceCoords?: { lat: number; lng: number };
   destination: string;
+  destinationCoords?: { lat: number; lng: number };
   members: Member[];
   startTime: string;
   reachTime: string;
@@ -120,6 +123,7 @@ export default function GroupPage() {
     longitude: number;
   } | null>(null);
   const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const lastAccuracyRef = useRef<number | null>(null);
   const lastUpdateTimeRef = useRef<number>(0);
   const resetInviteDialogState = () => {
     setQrCodeError(false);
@@ -143,13 +147,18 @@ export default function GroupPage() {
     const fetchGroup = async () => {
       setIsFetching(true);
       try {
-        let fetchedGroup: Group | null = getGroup(groupId);
-        if (!fetchedGroup) {
-          const res = await axios.get(
-            `${API_BASE_URL}/groups?clerkId=${user.id}`
-          );
-          fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
+        const cachedGroup = getGroup(groupId) as Group | null;
+        let fetchedGroup: Group | null = cachedGroup;
+
+        const res = await axios.get(
+          `${API_BASE_URL}/groups?clerkId=${user.id}`
+        );
+        const apiGroup = res.data.find((g: Group) => g._id === groupId) || null;
+
+        if (apiGroup) {
+          fetchedGroup = apiGroup;
         }
+
         if (!fetchedGroup) {
           toast({
             title: "Error",
@@ -188,38 +197,20 @@ export default function GroupPage() {
   useEffect(() => {
     if (!user || !groupId || !shareLocation || !isLoaded) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const now = Date.now();
-        const last = lastLocationRef.current;
+    let active = true;
+    const emitAccurateLocation = (
+      latitude: number,
+      longitude: number,
+      accuracy?: number
+    ) => {
+      const now = Date.now();
+      const last = lastLocationRef.current;
+      const previousAccuracy = lastAccuracyRef.current;
 
-        let shouldUpdate = false;
-
-        if (!last) {
-          shouldUpdate = true;
-        } else {
-          const distance = calculateDistance(
-            last.latitude,
-            last.longitude,
-            latitude,
-            longitude
-          );
-
-          // Only update if user has moved at least 10 meters
-          if (distance >= 10) {
-            shouldUpdate = true;
-          }
-        }
-
-        // Additionally rate-limit updates to at most once every 5 seconds
-        if (!shouldUpdate && now - lastUpdateTimeRef.current < 5000) {
-          return;
-        }
-
+      if (!last) {
         lastLocationRef.current = { latitude, longitude };
+        lastAccuracyRef.current = typeof accuracy === "number" ? accuracy : null;
         lastUpdateTimeRef.current = now;
-
         setLocation({ latitude, longitude });
         socket.emit("updateLocation", {
           groupId,
@@ -227,12 +218,83 @@ export default function GroupPage() {
           lat: latitude,
           lng: longitude,
         });
+        return;
+      }
+
+      const distance = calculateDistance(
+        last.latitude,
+        last.longitude,
+        latitude,
+        longitude
+      );
+
+      const movementThreshold = Math.max(
+        8,
+        Math.min((typeof accuracy === "number" ? accuracy : 12) / 2, 30)
+      );
+      const hasMovedEnough = distance >= movementThreshold;
+      const isClearlyMoreAccurate =
+        typeof accuracy === "number" &&
+        (!previousAccuracy || accuracy + 10 < previousAccuracy);
+      const shouldRefreshStationary = now - lastUpdateTimeRef.current >= 15000;
+
+      if (!hasMovedEnough && !(isClearlyMoreAccurate && shouldRefreshStationary)) {
+        return;
+      }
+
+      lastLocationRef.current = { latitude, longitude };
+      lastAccuracyRef.current = typeof accuracy === "number" ? accuracy : previousAccuracy;
+      lastUpdateTimeRef.current = now;
+
+      setLocation({ latitude, longitude });
+      socket.emit("updateLocation", {
+        groupId,
+        clerkId: user.id,
+        lat: latitude,
+        lng: longitude,
+      });
+    };
+
+    const primeLocation = async () => {
+      try {
+        const best = await getBestCurrentLocation({
+          desiredAccuracy: 40,
+          maxWaitMs: 12000,
+          minimumSamples: 2,
+          maximumAge: 0,
+        });
+
+        if (!active) return;
+        emitAccurateLocation(best.latitude, best.longitude, best.accuracy);
+      } catch (error) {
+        console.error("Initial location fix error:", error);
+      }
+    };
+
+    primeLocation();
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+
+        if (!isAcceptableAccuracy(accuracy, 120) && lastLocationRef.current) {
+          return;
+        }
+
+        if (!isAcceptableAccuracy(accuracy, 250) && !lastLocationRef.current) {
+          return;
+        }
+
+        emitAccurateLocation(latitude, longitude, accuracy);
       },
       (err) => console.error("Geolocation error:", err),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      active = false;
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [user, groupId, shareLocation, isLoaded]);
 
   useEffect(() => {
@@ -911,9 +973,11 @@ export default function GroupPage() {
                 <MapComponent
                   location={location}
                   groupLocations={groupLocationsArray}
-                  members={group?.members}
-                  source={group?.source}
-                  destination={group?.destination}
+                  members={group.members}
+                  source={group.source}
+                  sourceCoords={group.sourceCoords}
+                  destination={group.destination}
+                  destinationCoords={group.destinationCoords}
                 />
               ) : (
                 <p>Loading map...</p>

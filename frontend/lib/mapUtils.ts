@@ -1,3 +1,5 @@
+import { parseCoordinatesFromLocationInput } from "@/lib/locationParsing";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -7,6 +9,11 @@ const metricsCache = new Map<
 >();
 
 async function geocode(place: string): Promise<{ lat: number; lng: number } | null> {
+  const parsed = parseCoordinatesFromLocationInput(place);
+  if (parsed) {
+    return parsed;
+  }
+
   try {
     const res = await fetch(
       `${API_BASE_URL}/map/geocode?q=${encodeURIComponent(place)}`
@@ -87,19 +94,31 @@ export interface RouteMetrics {
 
 export async function fetchRouteMetrics(
   source: string,
-  destination: string
+  destination: string,
+  sourceCoords?: { lat: number; lng: number } | null,
+  destinationCoords?: { lat: number; lng: number } | null
 ): Promise<RouteMetrics> {
   const cacheKey = `${source.trim().toLowerCase()}::${destination
     .trim()
-    .toLowerCase()}`;
+    .toLowerCase()}::${sourceCoords?.lat ?? ""},${sourceCoords?.lng ?? ""}::${
+    destinationCoords?.lat ?? ""
+  },${destinationCoords?.lng ?? ""}`;
 
   const cached = metricsCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const from = await geocode(source);
-  const to = await geocode(destination);
+  const from =
+    sourceCoords && Number.isFinite(sourceCoords.lat) && Number.isFinite(sourceCoords.lng)
+      ? sourceCoords
+      : await geocode(source);
+  const to =
+    destinationCoords &&
+    Number.isFinite(destinationCoords.lat) &&
+    Number.isFinite(destinationCoords.lng)
+      ? destinationCoords
+      : await geocode(destination);
 
   if (!from || !to) {
     const fallback = { distance: 0, duration: { hours: 0, minutes: 0 } };

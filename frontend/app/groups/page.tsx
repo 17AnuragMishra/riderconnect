@@ -55,12 +55,16 @@ interface Member {
   isOnline?: boolean;
 }
 
+type Coords = { lat: number; lng: number };
+
 interface Group {
   _id: string;
   name: string;
   code: string;
   source: string;
+  sourceCoords?: Coords;
   destination: string;
+  destinationCoords?: Coords;
   startTime: string;
   reachTime: string;
   members: Member[];
@@ -125,15 +129,27 @@ const GroupsPage = () => {
     };
   }, [user, isLoaded, activeGroups, archivedGroups, router, toast]);
 
-  const getGroupMetrics = async (source: string, destination: string) => {
-    const key = `${source}-${destination}`;
+  const getGroupMetrics = async (
+    source: string,
+    destination: string,
+    sourceCoords?: Coords,
+    destinationCoords?: Coords
+  ) => {
+    const key = `${source}-${destination}-${sourceCoords?.lat ?? ""},${
+      sourceCoords?.lng ?? ""
+    }-${destinationCoords?.lat ?? ""},${destinationCoords?.lng ?? ""}`;
 
     if (groupMetrics.has(key)) {
       return groupMetrics.get(key);
     }
 
     try {
-      const metrics = await fetchRouteMetrics(source, destination);
+      const metrics = await fetchRouteMetrics(
+        source,
+        destination,
+        sourceCoords,
+        destinationCoords
+      );
       setGroupMetrics((prev) => new Map(prev).set(key, metrics));
       return metrics;
     } catch {
@@ -148,7 +164,12 @@ const GroupsPage = () => {
     const loadMetrics = async () => {
       const allGroups = [...activeGroups, ...archivedGroups];
       for (const group of allGroups) {
-        await getGroupMetrics(group.source, group.destination);
+        await getGroupMetrics(
+          group.source,
+          group.destination,
+          group.sourceCoords,
+          group.destinationCoords
+        );
       }
     };
     loadMetrics();
@@ -226,7 +247,9 @@ const GroupsPage = () => {
                       <div className="text-2xl font-bold">
                         {activeGroups.length > 0 || archivedGroups.length > 0 ?
                           formatDistance(Math.max(...[...activeGroups, ...archivedGroups].map((g: Group) => {
-                            const key = `${g.source}-${g.destination}`;
+                            const key = `${g.source}-${g.destination}-${g.sourceCoords?.lat ?? ""},${
+                              g.sourceCoords?.lng ?? ""
+                            }-${g.destinationCoords?.lat ?? ""},${g.destinationCoords?.lng ?? ""}`;
                             return groupMetrics.get(key)?.distance || 0;
                           }))) : '0km'}
                       </div>
@@ -335,7 +358,9 @@ const GroupsPage = () => {
                               </div>
                             </div>
                             {(() => {
-                              const key = `${group.source}-${group.destination}`;
+                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${
+                                group.sourceCoords?.lng ?? ""
+                              }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                               const metrics = groupMetrics.get(key) || {
                                 distance: 0,
                                 duration: { hours: 0, minutes: 0 }
@@ -469,7 +494,9 @@ const GroupsPage = () => {
                               </div>
                             </div>
                             {(() => {
-                              const key = `${group.source}-${group.destination}`;
+                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${
+                                group.sourceCoords?.lng ?? ""
+                              }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                               const metrics = groupMetrics.get(key) || {
                                 distance: 0,
                                 duration: { hours: 0, minutes: 0 }

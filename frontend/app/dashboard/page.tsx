@@ -49,6 +49,9 @@ import { useUser } from "@clerk/nextjs";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
 import { fetchRouteMetrics } from "@/lib/mapUtils";
+import { getBestCurrentLocation } from "@/lib/geolocation";
+import LocationPickerMap from "@/components/location/location-picker-map";
+import { formatLocationWithCoordinates } from "@/lib/locationParsing";
 import axios from "axios";
 
 interface Member {
@@ -58,14 +61,18 @@ interface Member {
   isOnline?: Boolean;
 }
 
+type Coords = { lat: number; lng: number };
+
 interface Group {
   _id: string;
   name: string;
   code: string;
   source: string;
+  sourceCoords?: Coords;
   startTime: string;
   reachTime: string;
   destination: string;
+  destinationCoords?: Coords;
   members: Member[];
   isActive: boolean;
   createdBy: string;
@@ -103,6 +110,8 @@ export default function Dashboard() {
   const [newGroupName, setNewGroupName] = useState("");
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
+  const [sourceCoords, setSourceCoords] = useState<Coords | null>(null);
+  const [destinationCoords, setDestinationCoords] = useState<Coords | null>(null);
   const [startDateTime, setStartDateTime] = useState("");
   const [reachDateTime, setReachDateTime] = useState("");
   const [validationErrors, setValidationErrors] = useState<{ startTime?: string; reachTime?: string }>({});
@@ -119,6 +128,8 @@ export default function Dashboard() {
   const [groupMetrics, setGroupMetrics] = useState<Map<string, { distance: number; duration: { hours: number; minutes: number } }>>(new Map());
   const [sourceError, setSourceError] = useState<string>("");
   const [destinationError, setDestinationError] = useState<string>("");
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapPickerTarget, setMapPickerTarget] = useState<"source" | "destination">("source");
 
   useEffect(() => {
     if (isLoaded && !user) redirect("/sign-in")
@@ -129,34 +140,32 @@ export default function Dashboard() {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
   };
 
-  const getCurrentLocationAddress = async () => {
-    const coords = await new Promise<{ latitude: number; longitude: number }>(
-      (resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          ({ coords }) => {
-            resolve({ latitude: coords.latitude, longitude: coords.longitude });
-          },
-          reject,
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
-          }
-        );
-      }
-    );
+  const getCurrentLocationAddress = async (): Promise<{ address: string; coords: Coords }> => {
+    const coords = await getBestCurrentLocation({
+      desiredAccuracy: 40,
+      maxWaitMs: 12000,
+      minimumSamples: 2,
+      maximumAge: 0,
+    });
 
     try {
       const reverseGeocodeResponse = await axios.get(
         `https://api.locationiq.com/v1/reverse?key=${LOCATION_IO_API_KEY}&lat=${coords.latitude}&lon=${coords.longitude}&format=json`
       );
 
-      return (
-        reverseGeocodeResponse.data?.display_name ||
-        `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
-      );
+      return {
+        address: formatLocationWithCoordinates(
+          coords.latitude,
+          coords.longitude,
+          reverseGeocodeResponse.data?.display_name
+        ),
+        coords: { lat: coords.latitude, lng: coords.longitude },
+      };
     } catch {
-      return `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+      return {
+        address: formatLocationWithCoordinates(coords.latitude, coords.longitude),
+        coords: { lat: coords.latitude, lng: coords.longitude },
+      };
     }
   };
 
@@ -172,11 +181,12 @@ export default function Dashboard() {
 
     setIsAutoFillingLocation(true);
     try {
-      const currentLocationAddress = await getCurrentLocationAddress();
+      const currentLocation = await getCurrentLocationAddress();
       const now = new Date();
 
       setRideStartMode("start-now");
-      setSource(currentLocationAddress);
+      setSource(currentLocation.address);
+      setSourceCoords(currentLocation.coords);
       setSourceError("");
       setStartDateTime(toDateTimeLocalValue(now));
       setValidationErrors((prev) => ({ ...prev, startTime: undefined }));
@@ -264,7 +274,15 @@ export default function Dashboard() {
           ? new Date().toISOString()
           : new Date(startDateTime).toISOString();
       const formattedReachTime = new Date(reachDateTime).toISOString();
-      const group = await createGroup(newGroupName, source, destination, formattedStartTime, formattedReachTime);
+      const group = await createGroup(
+        newGroupName,
+        source,
+        destination,
+        formattedStartTime,
+        formattedReachTime,
+        sourceCoords,
+        destinationCoords
+      );
       toast({
         title: "Success",
         description: `Group "${group.name}" created with code ${group.code}!`,
@@ -272,6 +290,8 @@ export default function Dashboard() {
       setNewGroupName("");
       setSource("");
       setDestination("");
+      setSourceCoords(null);
+      setDestinationCoords(null);
       setReachDateTime("");
       setStartDateTime("");
       setValidationErrors({});
@@ -322,15 +342,27 @@ export default function Dashboard() {
     }
   };
 
-  const getGroupMetrics = async (source: string, destination: string) => {
-    const key = `${source}-${destination}`;
+  const getGroupMetrics = async (
+    source: string,
+    destination: string,
+    sourceCoordsValue?: Coords,
+    destinationCoordsValue?: Coords
+  ) => {
+    const key = `${source}-${destination}-${sourceCoordsValue?.lat ?? ""},${
+      sourceCoordsValue?.lng ?? ""
+    }-${destinationCoordsValue?.lat ?? ""},${destinationCoordsValue?.lng ?? ""}`;
 
     if (groupMetrics.has(key)) {
       return groupMetrics.get(key);
     }
 
     try {
-      const metrics = await fetchRouteMetrics(source, destination);
+      const metrics = await fetchRouteMetrics(
+        source,
+        destination,
+        sourceCoordsValue,
+        destinationCoordsValue
+      );
       setGroupMetrics((prev) => new Map(prev).set(key, metrics));
       return metrics;
     } catch {
@@ -344,7 +376,12 @@ export default function Dashboard() {
   useEffect(() => {
     const loadMetrics = async () => {
       for (const group of groups) {
-        await getGroupMetrics(group.source, group.destination);
+        await getGroupMetrics(
+          group.source,
+          group.destination,
+          group.sourceCoords,
+          group.destinationCoords
+        );
       }
     };
     loadMetrics();
@@ -609,6 +646,7 @@ export default function Dashboard() {
                       readOnly={rideStartMode === "start-now"}
                       onChange={(e) => {
                         setSource(e.target.value);
+                        setSourceCoords(null);
                         setSourceError(""); // Clear error when typing
                         fetchSuggestion(e.target.value, e.target.id);
                       }}
@@ -616,6 +654,19 @@ export default function Dashboard() {
                       className={sourceError ? "border-red-500" : ""}
                       required
                     />
+                    <div className="flex items-center justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setMapPickerTarget("source");
+                          setMapPickerOpen(true);
+                        }}
+                      >
+                        Find on Map
+                      </Button>
+                    </div>
                     {sourceError && (
                       <p className="text-sm text-red-500">{sourceError}</p>
                     )}
@@ -627,6 +678,7 @@ export default function Dashboard() {
                             key={index}
                             onClick={() => {
                               setSource(place.display_name);
+                              setSourceCoords(null);
                               setSuggestedSource([]);
                               setSourceError(""); // Clear error when selecting
                             }}
@@ -638,13 +690,14 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="destination">Destination (India only)</Label>
+                    <Label htmlFor="destination">Destination (India only)</Label>                    
                     <Input
                       id="destination"
                       placeholder="e.g., Delhi, Delhi"
                       value={destination}
                       onChange={(e) => {
                         setDestination(e.target.value);
+                        setDestinationCoords(null);
                         setDestinationError(""); // Clear error when typing
                         fetchSuggestion(e.target.value, e.target.id);
                       }}
@@ -652,6 +705,19 @@ export default function Dashboard() {
                       className={destinationError ? "border-red-500" : ""}
                       required
                     />
+                    <div className="flex items-center justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setMapPickerTarget("destination");
+                          setMapPickerOpen(true);
+                        }}
+                      >
+                        Find on Map
+                      </Button>
+                    </div>
                     {destinationError && (
                       <p className="text-sm text-red-500">{destinationError}</p>
                     )}
@@ -664,6 +730,7 @@ export default function Dashboard() {
                               key={index}
                               onClick={() => {
                                 setDestination(place.display_name);
+                                setDestinationCoords(null);
                                 setSuggestedDestination([]);
                                 setDestinationError(""); // Clear error when selecting
                               }}
@@ -737,6 +804,39 @@ export default function Dashboard() {
                     {isCreating ? "Creating..." : "Create Group"}
                   </Button>
                 </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={mapPickerOpen} onOpenChange={setMapPickerOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {mapPickerTarget === "source" ? "Pick Source on Map" : "Pick Destination on Map"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Select an exact point to improve distance and route accuracy.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <LocationPickerMap
+                  apiKey={LOCATION_IO_API_KEY}
+                  initialValue={mapPickerTarget === "source" ? source : destination}
+                  onSelect={({ lat, lng, label }) => {
+                    const formatted = formatLocationWithCoordinates(lat, lng, label);
+                    if (mapPickerTarget === "source") {
+                      setSource(formatted);
+                      setSourceCoords({ lat, lng });
+                      setSourceError("");
+                      setSuggestedSource([]);
+                    } else {
+                      setDestination(formatted);
+                      setDestinationCoords({ lat, lng });
+                      setDestinationError("");
+                      setSuggestedDestination([]);
+                    }
+                    setMapPickerOpen(false);
+                  }}
+                />
               </DialogContent>
             </Dialog>
             <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
@@ -885,7 +985,9 @@ export default function Dashboard() {
 
                       {/* Stats */}
                       {(() => {
-                        const key = `${group.source}-${group.destination}`;
+                        const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${
+                          group.sourceCoords?.lng ?? ""
+                        }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                         const metrics = groupMetrics.get(key) || {
                           distance: 0,
                           duration: { hours: 0, minutes: 0 }
