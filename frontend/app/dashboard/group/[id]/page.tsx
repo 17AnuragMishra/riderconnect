@@ -113,6 +113,7 @@ export default function GroupPage() {
   const [originalThreshold, setOriginalThreshold] = useState(1000);
   const [shareLocation, setShareLocation] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [focusedLocation, setFocusedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [qrCodeLoading, setQrCodeLoading] = useState(true);
@@ -978,13 +979,21 @@ export default function GroupPage() {
                   sourceCoords={group.sourceCoords}
                   destination={group.destination}
                   destinationCoords={group.destinationCoords}
+                  focusedLocation={focusedLocation}
                 />
               ) : (
                 <p>Loading map...</p>
               )}
             </TabsContent>
             <TabsContent value="chat" className="mt-0 h-full">
-              <ChatTab members={group.members} groupId={groupId} />
+              <ChatTab
+                members={group.members}
+                groupId={groupId}
+                onViewLocation={(lat, lng) => {
+                  setFocusedLocation({ lat, lng });
+                  setActiveTab("map");
+                }}
+              />
             </TabsContent>
             <TabsContent value="members" className="mt-0 h-full">
               <MemberTab group={group} />

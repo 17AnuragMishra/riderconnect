@@ -31,6 +31,7 @@ interface MapComponentProps {
   destination: string;
   sourceCoords?: { lat: number; lng: number };
   destinationCoords?: { lat: number; lng: number };
+  focusedLocation?: { lat: number; lng: number } | null;
 }
 
 type LatLng = [number, number];
@@ -78,7 +79,7 @@ function createAvatarIcon(_avatarUrl?: string, isOnline: boolean = false) {
 }
 const blueIcon = new L.Icon({
   iconUrl:
-  "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
   shadowUrl:
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   iconSize: [25, 41],
@@ -115,6 +116,16 @@ function MapUpdater({
       map.fitBounds(bounds, { padding: [100, 100] });
     }
   }, [map, center, locations, isInitialLoad]);
+  return null;
+}
+
+function FlyToLocation({ location }: { location: { lat: number; lng: number } | null | undefined }) {
+  const map = useMap();
+  useEffect(() => {
+    if (location && map) {
+      map.flyTo([location.lat, location.lng], 16, { animate: true, duration: 1.2 });
+    }
+  }, [location, map]);
   return null;
 }
 
@@ -176,6 +187,7 @@ export default function MapComponent({
   destination,
   sourceCoords,
   destinationCoords,
+  focusedLocation,
 }: MapComponentProps) {
   const { user } = useUser();
   const userPos: LatLng = [location.latitude, location.longitude];
@@ -193,7 +205,7 @@ export default function MapComponent({
     !!destinationFromText;
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [mapReady, setMapReady] = useState(false);
-  
+
   const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [srcCoords, setSrcCoords] = useState<LatLng | null>(null);
   const [dstCoords, setDstCoords] = useState<LatLng | null>(null);
@@ -286,7 +298,7 @@ export default function MapComponent({
 
     return null;
   }
-  
+
   const LoadingOverlay = () => (
     <div
       className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm dark:bg-background/90 bg-grid-pattern"
@@ -463,10 +475,10 @@ export default function MapComponent({
         const alternatives: RoutePath[] =
           Array.isArray(data.alternatives) && data.alternatives.length > 0
             ? data.alternatives
-                .map((alt: any) =>
-                  buildRoutePath(alt.geometry, alt.distance, alt.duration)
-                )
-                .filter(Boolean) as RoutePath[]
+              .map((alt: any) =>
+                buildRoutePath(alt.geometry, alt.distance, alt.duration)
+              )
+              .filter(Boolean) as RoutePath[]
             : [];
 
         if (primary) {
@@ -571,22 +583,22 @@ export default function MapComponent({
     async function getRoute() {
       setIsLoading(true);
       setLoadingProgress(10);
-      
+
       try {
         const from =
           sourceCoords && Number.isFinite(sourceCoords.lat) && Number.isFinite(sourceCoords.lng)
             ? ([sourceCoords.lat, sourceCoords.lng] as LatLng)
             : await fetchCoordinates(source);
         setLoadingProgress(40);
-        
+
         const to =
           destinationCoords &&
-          Number.isFinite(destinationCoords.lat) &&
-          Number.isFinite(destinationCoords.lng)
+            Number.isFinite(destinationCoords.lat) &&
+            Number.isFinite(destinationCoords.lng)
             ? ([destinationCoords.lat, destinationCoords.lng] as LatLng)
             : await fetchCoordinates(destination);
         setLoadingProgress(70);
-        
+
         if (from && to) {
           setSrcCoords(from);
           setDstCoords(to);
@@ -692,13 +704,13 @@ export default function MapComponent({
 
   return (
     <div className="relative w-full h-full min-h-[350px] xs:min-h-[450px] sm:min-h-[500px] md:min-h-[70vh] lg:min-h-[70vh]">
-      <div 
+      <div
         className={cn(
           "map-container h-full w-full transition-all duration-300 ease-in-out relative shadow-md rounded-lg overflow-hidden",
           "bg-muted/30 dark:bg-muted/10",
           "touch-optimized"
         )}
-        style={{ 
+        style={{
           position: 'relative',
           height: '100%',
           width: '100%',
@@ -763,18 +775,18 @@ export default function MapComponent({
           )}
         </div>
         {!mapReady && <LoadingOverlay />}
-        <MapContainer 
-          center={userPos} 
+        <MapContainer
+          center={userPos}
           zoom={13}
-          scrollWheelZoom={true} 
+          scrollWheelZoom={true}
           className="h-full w-full z-10"
           zoomAnimation={true}
           fadeAnimation={true}
           markerZoomAnimation={true}
           zoomControl={false}
-          style={{ 
-            height: '100%', 
-            width: '100%', 
+          style={{
+            height: '100%',
+            width: '100%',
             minHeight: 'inherit',
             position: 'relative',
             zIndex: 1
@@ -786,7 +798,8 @@ export default function MapComponent({
         >
           <ZoomControl position="topright" />
           <ScaleControl position="bottomright" metric={true} imperial={false} />
-          
+          <FlyToLocation location={focusedLocation} />
+
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="Standard">
               <TileLayer
@@ -826,22 +839,22 @@ export default function MapComponent({
 
               {availableRoutes.length > 0
                 ? availableRoutes.map((route, index) => (
-                    <Polyline
-                      key={index}
-                      positions={route.coords}
-                      pathOptions={{
-                        color: index === selectedRouteIndex ? "#2563eb" : "#9ca3af",
-                        weight: index === selectedRouteIndex ? 5 : 3,
-                        opacity: index === selectedRouteIndex ? 0.9 : 0.6,
-                      }}
-                    />
-                  ))
+                  <Polyline
+                    key={index}
+                    positions={route.coords}
+                    pathOptions={{
+                      color: index === selectedRouteIndex ? "#2563eb" : "#9ca3af",
+                      weight: index === selectedRouteIndex ? 5 : 3,
+                      opacity: index === selectedRouteIndex ? 0.9 : 0.6,
+                    }}
+                  />
+                ))
                 : routeCoords.length > 0 && (
-                    <Polyline
-                      positions={routeCoords}
-                      pathOptions={{ color: "blue" }}
-                    />
-                  )}
+                  <Polyline
+                    positions={routeCoords}
+                    pathOptions={{ color: "blue" }}
+                  />
+                )}
 
               <UserMarker
                 position={userPos}
@@ -886,7 +899,7 @@ export default function MapComponent({
             </>
           )}
         </MapContainer>
-        
+
         {isLoading && <LoadingOverlay />}
       </div>
     </div>
