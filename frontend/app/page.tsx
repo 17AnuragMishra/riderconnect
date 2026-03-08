@@ -251,10 +251,10 @@ function StatsTicker() {
     "👥  FREE FOR UP TO 10 RIDERS",
   ];
   return (
-    <div className="overflow-hidden border-y border-border/50 py-3.5 bg-teal/[0.03]">
+    <div className="overflow-hidden">
       <div className="ticker-track">
         {[...items, ...items].map((s, i) => (
-          <span key={i} className="font-mono text-xs text-teal tracking-wider">{s}</span>
+          <span key={i} className="font-mono text-xs border-border/50 py-5 px-2 rounded-xl bg-teal/[0.03] text-teal tracking-wider">{s}</span>
         ))}
       </div>
     </div>
@@ -335,7 +335,7 @@ export default function LandingPage() {
               transition={{ delay: 0.8 }}
               className="flex gap-6 mt-9 flex-wrap"
             >
-              {[["12k+", "Riders"], ["99.9%", "Uptime"], ["<2s", "Alert Latency"]].map(([v, l]) => (
+              {[["1k+", "Riders"], ["99.9%", "Uptime"], ["<1s", "Alert Latency"]].map(([v, l]) => (
                 <div key={l}>
                   <div className="font-mono text-xl font-semibold">{v}</div>
                   <div className="text-xs text-muted-foreground">{l}</div>

@@ -13,37 +13,6 @@ const setupSocket = (io) => {
   const viewingState = {};
   const distanceAlertCooldown = new Map();
 
-  // Helper: fetch last location from DB and broadcast a system message to group chat
-  const sendLastLocationMessage = async (groupId, clerkId, reason) => {
-    try {
-      const location = await UserLocation.findOne({ groupId, clerkId });
-      if (!location || !location.lat || !location.lng) return;
-
-      const group = await Group.findById(groupId);
-      if (!group) return;
-
-      const member = group.members.find(m => m.clerkId === clerkId);
-      const riderName = member?.name || 'Unknown Rider';
-
-      const reasonText = reason === 'offline'
-        ? `${riderName} went offline`
-        : `${riderName} exceeded the distance threshold`;
-
-      const message = new Message({
-        groupId,
-        senderId: 'system',
-        senderName: 'System',
-        content: reasonText,
-        type: 'location',
-        locationData: { lat: location.lat, lng: location.lng, riderName, reason },
-      });
-      await message.save();
-      io.to(groupId.toString()).emit('receiveMessage', message);
-    } catch (err) {
-      console.error('sendLastLocationMessage error:', err);
-    }
-  };
-
   setInterval(async () => {
     try {
       for (const groupId in groupSockets) {
@@ -79,8 +48,6 @@ const setupSocket = (io) => {
               }));
               io.to(groupId).emit('memberStatusUpdate', updatedMembers);
             }
-            // Send last location message
-            await sendLastLocationMessage(groupId, clerkId, 'offline');
           } catch (err) {
             console.error(`Heartbeat error for group ${groupId}:`, err);
           }
@@ -289,8 +256,6 @@ const setupSocket = (io) => {
                 time: new Date().toISOString(),
               });
               distanceAlertCooldown.set(alertKey, Date.now());
-              // Send last location message for the rider who exceeded the threshold
-              await sendLastLocationMessage(groupId, clerkId, 'threshold');
             }
           }
         }
@@ -370,8 +335,6 @@ const setupSocket = (io) => {
                     }));
                     io.to(groupId).emit('memberStatusUpdate', updatedMembers);
                   }
-                  // Send last location message
-                  await sendLastLocationMessage(groupId, clerkId, 'offline');
                 } catch (err) {
                   console.error('Disconnect error:', err);
                 }

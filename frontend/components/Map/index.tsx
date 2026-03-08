@@ -126,7 +126,19 @@ function FlyToLocation({ location }: { location: { lat: number; lng: number } | 
       map.flyTo([location.lat, location.lng], 16, { animate: true, duration: 1.2 });
     }
   }, [location, map]);
-  return null;
+
+  if (!location) return null;
+
+  return (
+    <Marker
+      position={[location.lat, location.lng]}
+      icon={redIcon}
+    >
+      <Popup>
+        <div className="text-sm font-semibold">Last Known Location</div>
+      </Popup>
+    </Marker>
+  );
 }
 
 function UserMarker({
@@ -251,7 +263,7 @@ export default function MapComponent({
         }
       } else {
         const text = await res.text().catch(() => "");
-        console.error(
+        console.warn(
           "Backend geocode failed:",
           place,
           res.status,

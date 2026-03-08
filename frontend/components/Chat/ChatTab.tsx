@@ -44,165 +44,8 @@ const socket: Socket = io(API_BASE_URL, {
   reconnectionDelay: 1000,
 });
 
-// ─── Location Banner Component ────────────────────────────────────────────────
 
-function LocationBanner({
-  message,
-  onViewLocation,
-}: {
-  message: Message;
-  onViewLocation?: (lat: number, lng: number) => void;
-}) {
-  const { locationData } = message;
-  if (!locationData) return null;
 
-  const isOffline = locationData.reason === "offline";
-  const Icon = isOffline ? WifiOff : AlertTriangle;
-  const accentColor = isOffline ? "#ef4444" : "#f59e0b";
-  const bgGradient = isOffline
-    ? "linear-gradient(135deg, #1a0505 0%, #2d0a0a 50%, #1a0505 100%)"
-    : "linear-gradient(135deg, #1a1000 0%, #2d1f00 50%, #1a1000 100%)";
-  const borderColor = isOffline ? "rgba(239,68,68,0.35)" : "rgba(245,158,11,0.35)";
-  const badgeText = isOffline ? "OFFLINE" : "THRESHOLD EXCEEDED";
-
-  return (
-    <div
-      style={{
-        background: bgGradient,
-        border: `1px solid ${borderColor}`,
-        borderRadius: "14px",
-        overflow: "hidden",
-        width: "100%",
-        maxWidth: "320px",
-        boxShadow: `0 4px 20px ${isOffline ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)"}`,
-      }}
-    >
-      {/* Header stripe */}
-      <div
-        style={{
-          background: `linear-gradient(90deg, ${accentColor}22, ${accentColor}44, ${accentColor}22)`,
-          borderBottom: `1px solid ${borderColor}`,
-          padding: "8px 14px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "8px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <Icon size={13} style={{ color: accentColor, flexShrink: 0 }} />
-          <span
-            style={{
-              fontSize: "10px",
-              fontFamily: "monospace",
-              letterSpacing: "0.12em",
-              color: accentColor,
-              fontWeight: 700,
-            }}
-          >
-            {badgeText}
-          </span>
-        </div>
-        <MapPin size={13} style={{ color: accentColor, opacity: 0.7 }} />
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: "12px 14px" }}>
-        {/* Rider name */}
-        <p
-          style={{
-            fontSize: "15px",
-            fontWeight: 700,
-            color: "#f3f4f6",
-            marginBottom: "3px",
-            lineHeight: 1.2,
-          }}
-        >
-          {locationData.riderName}
-        </p>
-
-        {/* Reason subtitle */}
-        <p
-          style={{
-            fontSize: "12px",
-            color: "#9ca3af",
-            marginBottom: "10px",
-          }}
-        >
-          Last seen location captured
-        </p>
-
-        {/* Coordinates pill */}
-        <div
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "6px",
-            padding: "6px 10px",
-            marginBottom: "12px",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          <MapPin size={12} style={{ color: accentColor, flexShrink: 0 }} />
-          <span
-            style={{
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "#d1d5db",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {locationData.lat.toFixed(5)}, {locationData.lng.toFixed(5)}
-          </span>
-        </div>
-
-        {/* View on Map button */}
-        <button
-          onClick={() => onViewLocation?.(locationData.lat, locationData.lng)}
-          style={{
-            width: "100%",
-            padding: "9px",
-            background: accentColor,
-            border: "none",
-            borderRadius: "8px",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: "13px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "6px",
-            transition: "opacity 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-        >
-          <MapPin size={14} />
-          View on Map
-        </button>
-      </div>
-
-      {/* Timestamp footer */}
-      <div
-        style={{
-          padding: "6px 14px",
-          borderTop: `1px solid ${borderColor}`,
-          textAlign: "right",
-        }}
-      >
-        <span style={{ fontSize: "10px", color: "#6b7280", fontFamily: "monospace" }}>
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main ChatTab Component ───────────────────────────────────────────────────
 
@@ -336,21 +179,11 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
     <div className="flex flex-col h-[70vh]">
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
         {messages.map((message) => {
-          const isLocationMsg = message.type === "location";
           const sender =
             message.senderId === "system"
               ? null
               : members?.find((m) => m.clerkId === message.senderId);
           const isYou = message.senderId === user?.id;
-
-          // Render rich location banner for location system messages
-          if (isLocationMsg) {
-            return (
-              <div key={message._id} className="flex justify-center py-1">
-                <LocationBanner message={message} onViewLocation={onViewLocation} />
-              </div>
-            );
-          }
 
           return (
             <div
@@ -370,10 +203,10 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
                 <div>
                   <div
                     className={`rounded-lg px-3 py-2 ${isYou
-                        ? "bg-primary text-primary-foreground"
-                        : message.senderId === "system"
-                          ? "bg-muted text-center"
-                          : "bg-muted"
+                      ? "bg-primary text-primary-foreground"
+                      : message.senderId === "system"
+                        ? "bg-muted text-center"
+                        : "bg-muted"
                       }`}
                   >
                     <p>{message.content}</p>

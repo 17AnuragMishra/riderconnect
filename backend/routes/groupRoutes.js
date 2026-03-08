@@ -98,7 +98,7 @@ router.get('/active', async (req, res) => {
       return res.status(400).json({ error: 'clerkId missing' });
     }
     const now = new Date();
-    const groups = await Group.find({'members.clerkId': clerkId, reachTime: {$gte: now}});
+    const groups = await Group.find({ 'members.clerkId': clerkId, reachTime: { $gte: now } });
     res.json({ data: groups });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -111,7 +111,7 @@ router.get('/archive', async (req, res) => {
       return res.status(400).json({ error: 'clerkId missing' });
     }
     const now = new Date();
-    const groups = await Group.find({'members.clerkId': clerkId, reachTime: {$lt: now}});
+    const groups = await Group.find({ 'members.clerkId': clerkId, reachTime: { $lt: now } });
     res.json({ data: groups });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -160,10 +160,10 @@ router.get('/active', async (req, res) => {
       return res.status(400).json({ error: 'clerkId missing' });
     }
     const now = new Date();
-    const groups = await Group.find({'members.clerkId':clerkId,reachTime:{$gte:now}});
-    res.json({data:groups});
+    const groups = await Group.find({ 'members.clerkId': clerkId, reachTime: { $gte: now } });
+    res.json({ data: groups });
   } catch (err) {
-    res.status(500).json({ error: err.message});
+    res.status(500).json({ error: err.message });
   }
 });
 router.get('/archive', async (req, res) => {
@@ -173,8 +173,8 @@ router.get('/archive', async (req, res) => {
       return res.status(400).json({ error: 'clerkId missing' });
     }
     const now = new Date();
-    const groups = await Group.find({'members.clerkId': clerkId,reachTime:{$lt:now}});
-    res.json({ data:groups});
+    const groups = await Group.find({ 'members.clerkId': clerkId, reachTime: { $lt: now } });
+    res.json({ data: groups });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -203,6 +203,15 @@ router.get('/messages/group/:groupId', async (req, res) => {
   try {
     const messages = await Message.find({ groupId: req.params.groupId }).sort({ timestamp: 1 });
     res.json({ data: messages });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/locations/group/:groupId', async (req, res) => {
+  try {
+    const locations = await UserLocation.find({ groupId: req.params.groupId });
+    res.json({ data: locations });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

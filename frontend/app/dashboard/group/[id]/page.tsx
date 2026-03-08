@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import MapComponent from "@/components/Map";
 import ChatTab from "@/components/Chat/ChatTab";
 import MemberTab from "@/components/Member/MemberTab";
+import { LastLocationTab } from "@/components/Chat/LastLocationTab";
 import axios from "axios";
 import io from "socket.io-client";
 import { calculateDistance } from "@/lib/utils";
@@ -268,7 +269,7 @@ export default function GroupPage() {
         if (!active) return;
         emitAccurateLocation(best.latitude, best.longitude, best.accuracy);
       } catch (error) {
-        console.error("Initial location fix error:", error);
+        console.warn("Initial location fix error:", error);
       }
     };
 
@@ -288,7 +289,7 @@ export default function GroupPage() {
 
         emitAccurateLocation(latitude, longitude, accuracy);
       },
-      (err) => console.error("Geolocation error:", err),
+      (err) => console.warn("Geolocation error:", err),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
     );
 
@@ -372,7 +373,31 @@ export default function GroupPage() {
         });
       }
     };
+
+    const fetchLocations = async () => {
+      try {
+        const res = await axios.get(
+          `${API_BASE_URL}/groups/locations/group/${groupId}`
+        );
+        const locations = res.data.data;
+        if (locations && Array.isArray(locations)) {
+          setGroupLocations((prev) => {
+            const newMap = new Map(prev);
+            locations.forEach((loc: any) => {
+              if (loc.lat && loc.lng) {
+                newMap.set(loc.clerkId, { lat: loc.lat, lng: loc.lng });
+              }
+            });
+            return newMap;
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch locations:", err);
+      }
+    };
+
     fetchMessages();
+    fetchLocations();
     socket.connect();
 
     socket.on("connect", () => {
@@ -958,6 +983,10 @@ export default function GroupPage() {
                   <MessageSquare className="h-4 w-4" />
                   <span>Chat</span>
                 </TabsTrigger>
+                <TabsTrigger value="last-location" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-orange-500" />
+                  <span>Last Location</span>
+                </TabsTrigger>
                 <TabsTrigger
                   value="members"
                   className="flex items-center gap-2"
@@ -989,6 +1018,18 @@ export default function GroupPage() {
               <ChatTab
                 members={group.members}
                 groupId={groupId}
+                onViewLocation={(lat, lng) => {
+                  setFocusedLocation({ lat, lng });
+                  setActiveTab("map");
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="last-location" className="mt-0 h-full">
+              <LastLocationTab
+                members={group.members}
+                groupLocations={groupLocationsArray.map(([id, coords]) => ({ clerkId: id, ...coords }))}
+                distanceThreshold={group.distanceThreshold || 1000}
+                currentUserCoords={location ? { lat: location.latitude, lng: location.longitude } : null}
                 onViewLocation={(lat, lng) => {
                   setFocusedLocation({ lat, lng });
                   setActiveTab("map");
