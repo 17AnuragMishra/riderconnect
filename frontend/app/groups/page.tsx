@@ -177,9 +177,8 @@ const GroupsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="flex-1 container max-w-7xl mx-auto pt-20 pb-6 px-4 sm:px-6 lg:px-8 md:pt-24 md:pb-12">
-        <div className="flex flex-col gap-8">
+    <div className="flex-1 container max-w-7xl mx-auto pt-20 pb-6 px-4 sm:px-6 lg:px-8 md:pt-24 md:pb-12">
+      <div className="flex flex-col gap-8">
           {/* Header Section */}
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-bold tracking-tight">
@@ -219,11 +218,11 @@ const GroupsPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center">
-                    <div className="mr-4 bg-accent/10 p-2 rounded-full">
-                      <MapPin className="h-5 w-5 text-accent" />
+                    <div className="mr-4 bg-electric/10 p-2 rounded-full">
+                      <MapPin className="h-5 w-5 text-electric" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">
+                      <div className="text-2xl font-bold font-mono text-electric">
                         {activeGroups.length > 0 || archivedGroups.length > 0 ?
                           formatDistanceKm(Math.max(...[...activeGroups, ...archivedGroups].map((g: Group) => {
                             const key = `${g.source}-${g.destination}-${g.sourceCoords?.lat ?? ""},${g.sourceCoords?.lng ?? ""
@@ -346,11 +345,11 @@ const GroupsPage = () => {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
                                     <p className="text-muted-foreground">Estimated Distance</p>
-                                    <p className="font-medium">{formatDistanceKm(metrics.distance)}</p>
+                                    <p className="font-medium font-mono text-electric">{formatDistanceKm(metrics.distance)}</p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Est. Duration</p>
-                                    <p className="font-medium">
+                                    <p className="font-medium font-mono text-electric">
                                       {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                                     </p>
                                   </div>
@@ -481,11 +480,11 @@ const GroupsPage = () => {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
                                     <p className="text-muted-foreground">Estimated Distance</p>
-                                    <p className="font-medium">{formatDistanceKm(metrics.distance)}</p>
+                                    <p className="font-medium font-mono text-electric">{formatDistanceKm(metrics.distance)}</p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Est. Duration</p>
-                                    <p className="font-medium">
+                                    <p className="font-medium font-mono text-electric">
                                       {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                                     </p>
                                   </div>
@@ -543,7 +542,6 @@ const GroupsPage = () => {
           </section>
         </div>
       </div>
-    </div>
   );
 };
 

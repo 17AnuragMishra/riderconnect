@@ -41,136 +41,141 @@
 }
 
 @layer base {
+  /*
+   * Cyber-Pulse — midnight purple (#1A0B2E), neon magenta (#FF00FF), electric cyan (#00F2FF).
+   * Brand accents use --teal (maps to magenta) for legacy class names.
+   */
   :root {
-    --background: 210 40% 96%;
-    --foreground: 214 85% 15%;
-    --card: 210 35% 96%;
-    --card-foreground: 214 85% 15%;
-    --popover: 210 35% 96%;
-    --popover-foreground: 214 85% 15%;
-    --primary: 214 85% 30%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 30% 85%;
-    --secondary-foreground: 214 75% 15%;
-    --muted: 210 25% 90%;
-    --muted-foreground: 214 30% 45%;
-    --accent: 214 80% 45%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 210 20% 82%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    color-scheme: light;
+    --background: 280 35% 97%;
+    --foreground: 266 55% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 266 55% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 266 55% 18%;
+    --primary: 300 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 280 25% 92%;
+    --secondary-foreground: 266 55% 18%;
+    --muted: 280 22% 94%;
+    --muted-foreground: 266 25% 42%;
+    --accent: 300 45% 94%;
+    --accent-foreground: 266 55% 18%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 280 20% 88%;
+    --input: 280 20% 88%;
+    --ring: 300 100% 50%;
     --radius: 0.5rem;
 
-    /* Priority colors */
-    --priority-high: 0 84.2% 60.2%;
+    --electric-cyan: 187 100% 48%;
+    --electric-cyan-foreground: 266 55% 18%;
+
+    --priority-high: 0 72% 48%;
     --priority-high-foreground: 0 0% 98%;
-    --priority-medium: 38 92% 50%;
+    --priority-medium: 38 92% 48%;
     --priority-medium-foreground: 0 0% 98%;
-    --priority-low: 214 84% 56%;
-    --priority-low-foreground: 210 40% 98%;
+    --priority-low: 187 100% 42%;
+    --priority-low-foreground: 0 0% 98%;
 
-    /* Notification type colors */
-    --type-message: 265 89% 78%;
-    --type-message-foreground: 265 89% 50%;
-    --type-invitation: 142 71% 45%;
-    --type-invitation-foreground: 142 76% 36%;
-    --type-reminder: 38 92% 50%;
-    --type-reminder-foreground: 38 92% 40%;
-    --type-update: 214 84% 56%;
-    --type-update-foreground: 214 84% 46%;
+    --type-message: 280 60% 52%;
+    --type-message-foreground: 280 55% 38%;
+    --type-invitation: 142 60% 40%;
+    --type-invitation-foreground: 142 76% 28%;
+    --type-reminder: 38 92% 48%;
+    --type-reminder-foreground: 38 85% 32%;
+    --type-update: 187 100% 42%;
+    --type-update-foreground: 187 90% 28%;
 
-    /* Chart colors */
-    --chart-1: 214 80% 45%;
-    --chart-2: 196 64% 40%;
-    --chart-3: 168 58% 35%;
-    --chart-4: 32 85% 55%;
-    --chart-5: 4 70% 53%;
+    --chart-1: 300 100% 50%;
+    --chart-2: 187 100% 48%;
+    --chart-3: 270 70% 55%;
+    --chart-4: 38 90% 48%;
+    --chart-5: 320 75% 55%;
 
-    /* Sidebar colors */
-    --sidebar-background: 210 40% 95%;
-    --sidebar-foreground: 214 85% 25%;
-    --sidebar-primary: 214 85% 30%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 35% 90%;
-    --sidebar-accent-foreground: 214 85% 25%;
-    --sidebar-border: 210 20% 82%;
-    --sidebar-ring: 214 80% 45%;
+    --sidebar-background: 280 30% 96%;
+    --sidebar-foreground: 266 55% 18%;
+    --sidebar-primary: 300 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 25% 92%;
+    --sidebar-accent-foreground: 266 55% 18%;
+    --sidebar-border: 280 20% 88%;
+    --sidebar-ring: 300 100% 50%;
 
-    /* Landing page accent */
-    --teal: 166 100% 45%;
-    --teal-foreground: 222 47% 11%;
+    --teal: 300 100% 50%;
+    --teal-foreground: 0 0% 100%;
     --amber: 38 92% 50%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 45% 13%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 45% 13%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 166 100% 45%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 222 55% 20%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 222 45% 18%;
-    --muted-foreground: 210 30% 75%;
-    --accent: 166 100% 45%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    color-scheme: dark;
+    --background: 266 61% 11%;
+    --foreground: 280 25% 96%;
+    --card: 266 45% 16%;
+    --card-foreground: 280 20% 98%;
+    --popover: 266 48% 14%;
+    --popover-foreground: 280 20% 98%;
+    --primary: 300 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 266 35% 20%;
+    --secondary-foreground: 280 20% 96%;
+    --muted: 266 40% 14%;
+    --muted-foreground: 265 15% 68%;
+    --accent: 280 45% 22%;
+    --accent-foreground: 280 25% 96%;
+    --destructive: 0 62% 48%;
     --destructive-foreground: 0 0% 98%;
-    --border: 222 47% 18%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 166 100% 45%;
+    --border: 266 35% 24%;
+    --input: 266 45% 13%;
+    --ring: 300 100% 55%;
 
-    /* Priority colors */
-    --priority-high: 0 62.8% 50%;
+    --electric-cyan: 187 100% 50%;
+    --electric-cyan-foreground: 266 61% 11%;
+
+    --priority-high: 0 70% 52%;
     --priority-high-foreground: 0 0% 98%;
-    --priority-medium: 38 92% 50%;
+    --priority-medium: 38 92% 52%;
     --priority-medium-foreground: 0 0% 98%;
-    --priority-low: 210 85% 55%;
-    --priority-low-foreground: 210 40% 98%;
+    --priority-low: 187 100% 55%;
+    --priority-low-foreground: 266 61% 11%;
 
-    /* Notification type colors */
-    --type-message: 265 89% 78%;
-    --type-message-foreground: 265 89% 70%;
-    --type-invitation: 142 71% 45%;
-    --type-invitation-foreground: 142 76% 70%;
-    --type-reminder: 38 92% 50%;
-    --type-reminder-foreground: 38 92% 70%;
-    --type-update: 214 84% 56%;
-    --type-update-foreground: 214 84% 70%;
+    --type-message: 280 70% 78%;
+    --type-message-foreground: 280 65% 90%;
+    --type-invitation: 142 65% 48%;
+    --type-invitation-foreground: 142 76% 78%;
+    --type-reminder: 38 92% 55%;
+    --type-reminder-foreground: 38 95% 85%;
+    --type-update: 187 100% 58%;
+    --type-update-foreground: 187 100% 88%;
 
-    /* Chart colors */
-    --chart-1: 210 85% 60%;
-    --chart-2: 185 70% 50%;
-    --chart-3: 155 65% 45%;
-    --chart-4: 36 80% 55%;
-    --chart-5: 350 75% 60%;
+    --chart-1: 300 100% 58%;
+    --chart-2: 187 100% 55%;
+    --chart-3: 270 75% 60%;
+    --chart-4: 38 88% 55%;
+    --chart-5: 320 70% 60%;
 
-    /* Sidebar colors */
-    --sidebar-background: 222 47% 13%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 166 100% 45%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 45% 18%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 47% 18%;
-    --sidebar-ring: 166 100% 45%;
+    --sidebar-background: 266 55% 12%;
+    --sidebar-foreground: 280 20% 98%;
+    --sidebar-primary: 300 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 266 40% 18%;
+    --sidebar-accent-foreground: 280 20% 96%;
+    --sidebar-border: 266 35% 22%;
+    --sidebar-ring: 300 100% 55%;
 
-    /* Landing page accent */
-    --teal: 166 100% 45%;
-    --teal-foreground: 222 47% 11%;
-    --amber: 38 92% 50%;
+    --teal: 300 100% 50%;
+    --teal-foreground: 0 0% 100%;
+    --amber: 38 92% 52%;
   }
 
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  .font-mono {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -284,7 +289,7 @@
 }
 
 .dark .glass {
-  background: hsl(222 47% 11% / 0.85);
+  background: hsl(266 61% 11% / 0.9);
 }
 
 .glass-card {
@@ -316,14 +321,14 @@
    ═══════════════════════════════════════════════════════════════ */
 
 .text-gradient {
-  background: linear-gradient(135deg, hsl(var(--teal)), hsl(210 85% 60%));
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--electric-cyan)));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-gradient-warm {
-  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6);
+  background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--electric-cyan)), hsl(280 80% 60%), hsl(var(--primary)));
   background-size: 200% 200%;
   animation: gradient 8s ease infinite;
   -webkit-background-clip: text;
@@ -364,11 +369,11 @@
 }
 
 .shadow-glow-teal {
-  box-shadow: 0 0 30px hsl(var(--teal) / 0.3);
+  box-shadow: 0 0 28px hsl(var(--primary) / 0.45), 0 0 56px hsl(var(--primary) / 0.2);
 }
 
 .shadow-glow-teal:hover {
-  box-shadow: 0 0 50px hsl(var(--teal) / 0.5);
+  box-shadow: 0 0 40px hsl(var(--primary) / 0.55), 0 0 80px hsl(var(--primary) / 0.28);
 }
 
 /* Glowing horizontal rule */

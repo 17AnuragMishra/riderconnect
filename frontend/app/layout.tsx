@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
 import "./globals.css"
 import Navbar from "@/components/navbar"
@@ -13,13 +13,6 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
-})
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
 })
 
 const jetbrainsMono = JetBrains_Mono({
@@ -61,7 +54,7 @@ export default function RootLayout({
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         </head>
-        <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
+        <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
           <ThemeProvider>
             <GroupProvider>
               <Navbar />

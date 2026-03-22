@@ -16,7 +16,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="p-2 rounded-md  text-black dark:text-white transition-all duration-300 hover:scale-110 hover:shadow-md" 
+      className="p-2 rounded-md text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-110 hover:bg-muted/50" 
     >
       {theme === "dark" ? "🌙" : "☀️"}
     </button>

@@ -62,7 +62,7 @@ const features: FeatureCard[] = [
     id: "battery-optimization",
     title: "Battery Saver",
     description: "Intelligent tracking intervals that adjust based on movement to preserve battery life.",
-    icon: <Battery className="h-6 w-6 text-primary icon-glow" />
+    icon: <Battery className="h-6 w-6 text-electric icon-glow" />
   }
 ];
 

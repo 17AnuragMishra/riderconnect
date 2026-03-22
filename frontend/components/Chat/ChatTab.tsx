@@ -214,6 +214,14 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
   return (
     <div className="flex flex-col h-[70vh]">
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center min-h-[min(280px,45vh)] px-6 py-10 text-center border border-dashed border-border/60 rounded-xl bg-muted/20">
+            <p className="text-sm font-semibold text-foreground mb-1">Welcome to group chat</p>
+            <p className="text-sm text-muted-foreground max-w-[280px]">
+              No messages yet — be the first to say hello, share updates, or coordinate your ride with the group.
+            </p>
+          </div>
+        )}
         {messages.map((message) => {
           const sender =
             message.senderId === "system"

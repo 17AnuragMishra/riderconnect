@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import type { MutableRefObject } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -15,7 +16,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import { useUser } from "@clerk/nextjs";
 import L from "leaflet";
-import { Info } from "lucide-react";
+import { Info, LocateFixed } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn, calculateDistance } from "@/lib/utils";
 import { parseCoordinatesFromLocationInput } from "@/lib/locationParsing";
@@ -52,8 +53,22 @@ type CachedRoute = {
 const routeCache = new Map<string, CachedRoute>();
 const profileMetricsCache = new Map<string, { duration: number; distance: number }>();
 
-function createAvatarIcon(_avatarUrl?: string, isOnline: boolean = false) {
+function createAvatarIcon(
+  _avatarUrl?: string,
+  isOnline: boolean = false,
+  isSelf: boolean = false
+) {
   const emoji = "😐";
+  const borderColor = isSelf
+    ? "#ff00ff"
+    : isOnline
+      ? "#00f2ff"
+      : "#9ca3af";
+  const boxShadow = isSelf
+    ? "0 0 16px rgba(255,0,255,0.9), 0 0 6px rgba(255,0,255,0.6)"
+    : isOnline
+      ? "0 0 12px rgba(0,242,255,0.65)"
+      : "none";
 
   return L.divIcon({
     html: `
@@ -62,8 +77,9 @@ function createAvatarIcon(_avatarUrl?: string, isOnline: boolean = false) {
           width: 32px;
           height: 32px;
           border-radius: 50%;
-          border: 2px solid ${isOnline ? "#22c55e" : "#9ca3af"};
+          border: 2px solid ${borderColor};
           background: #ffffff;
+          box-shadow: ${boxShadow};
           display: flex;
           align-items: center;
           justify-content: center;
@@ -78,15 +94,23 @@ function createAvatarIcon(_avatarUrl?: string, isOnline: boolean = false) {
     iconAnchor: [16, 16],
   });
 }
-const blueIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
-  shadowUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
+
+const sourceIcon = L.divIcon({
+  html: `
+    <div
+      style="
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #00f2ff;
+        border: 2px solid rgba(0,242,255,0.85);
+        box-shadow: 0 0 14px rgba(0,242,255,0.75);
+      "
+    ></div>
+  `,
+  className: "",
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
 });
 
 const redIcon = new L.Icon({
@@ -117,6 +141,18 @@ function MapUpdater({
       map.fitBounds(bounds, { padding: [100, 100] });
     }
   }, [map, center, locations, isInitialLoad]);
+  return null;
+}
+
+/** Keeps a ref to the Leaflet map for controls rendered outside the map pane (above overlays). */
+function MapInstanceBridge({ mapRef }: { mapRef: MutableRefObject<L.Map | null> }) {
+  const map = useMap();
+  useEffect(() => {
+    mapRef.current = map;
+    return () => {
+      mapRef.current = null;
+    };
+  }, [map, mapRef]);
   return null;
 }
 
@@ -167,7 +203,7 @@ function UserMarker({
   return (
     <Marker
       position={position}
-      icon={createAvatarIcon(avatar, isOnline || false)}
+      icon={createAvatarIcon(avatar, isOnline || false, true)}
       ref={markerRef}
     >
       <Popup>
@@ -236,6 +272,13 @@ export default function MapComponent({
     foot: number | null;
   }>({ car: null, bike: null, foot: null });
   const [showEtaInfo, setShowEtaInfo] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
+
+  const canLocateUser =
+    Number.isFinite(userPos[0]) &&
+    Number.isFinite(userPos[1]) &&
+    Math.abs(userPos[0]) <= 90 &&
+    Math.abs(userPos[1]) <= 180;
 
   async function fetchCoordinates(place: string): Promise<LatLng | null> {
     const parsedCoords = parseCoordinatesFromLocationInput(place);
@@ -706,8 +749,13 @@ export default function MapComponent({
                   >
                     <div>Route {index + 1}</div>
                     <div className="text-[10px] text-muted-foreground">
-                      {formatDistanceFromMeters(route.distance)} •{" "}
-                      {formatEtaFromDistance(route.distance) ?? "—"}
+                      <span className="font-mono text-electric">
+                        {formatDistanceFromMeters(route.distance)}
+                      </span>
+                      {" "}•{" "}
+                      <span className="font-mono text-electric">
+                        {formatEtaFromDistance(route.distance) ?? "—"}
+                      </span>
                     </div>
                   </button>
                 ))}
@@ -760,6 +808,7 @@ export default function MapComponent({
         >
           <ZoomControl position="topright" />
           <ScaleControl position="bottomright" metric={true} imperial={false} />
+          <MapInstanceBridge mapRef={mapRef} />
           <FlyToLocation location={focusedLocation} />
 
           <LayersControl position="topright">
@@ -788,7 +837,7 @@ export default function MapComponent({
               <MapUpdater center={userPos} locations={groupLocations} isInitialLoad={isInitialLoad} />
 
               {srcCoords && (
-                <Marker position={srcCoords} icon={blueIcon}>
+                <Marker position={srcCoords} icon={sourceIcon}>
                   <Popup>Source</Popup>
                 </Marker>
               )}
@@ -805,16 +854,16 @@ export default function MapComponent({
                     key={index}
                     positions={route.coords}
                     pathOptions={{
-                      color: index === selectedRouteIndex ? "#2563eb" : "#9ca3af",
+                      color: index === selectedRouteIndex ? "#ff00ff" : "#64748b",
                       weight: index === selectedRouteIndex ? 5 : 3,
-                      opacity: index === selectedRouteIndex ? 0.9 : 0.6,
+                      opacity: index === selectedRouteIndex ? 0.92 : 0.55,
                     }}
                   />
                 ))
                 : routeCoords.length > 0 && (
                   <Polyline
                     positions={routeCoords}
-                    pathOptions={{ color: "blue" }}
+                    pathOptions={{ color: "#ff00ff" }}
                   />
                 )}
 
@@ -836,7 +885,8 @@ export default function MapComponent({
                   position={[lat, lng]}
                   icon={createAvatarIcon(
                     members?.find((m) => m.clerkId === clerkId)?.avatar,
-                    members?.find((m) => m.clerkId === clerkId)?.isOnline || false
+                    members?.find((m) => m.clerkId === clerkId)?.isOnline || false,
+                    false
                   )}
                 >
                   <Popup>
@@ -861,6 +911,22 @@ export default function MapComponent({
             </>
           )}
         </MapContainer>
+
+        {mapReady && (
+          <button
+            type="button"
+            disabled={!canLocateUser}
+            onClick={(e) => {
+              e.stopPropagation();
+              mapRef.current?.flyTo(userPos, 17, { animate: true, duration: 1.1 });
+            }}
+            className="pointer-events-auto absolute bottom-[52px] right-3 z-[100] flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background/95 text-primary shadow-md backdrop-blur-sm transition hover:bg-muted/90 disabled:pointer-events-none disabled:opacity-40"
+            aria-label="Zoom to my location"
+            title="My location"
+          >
+            <LocateFixed className="h-5 w-5" strokeWidth={2.25} />
+          </button>
+        )}
 
         {isLoading && <LoadingOverlay />}
       </div>

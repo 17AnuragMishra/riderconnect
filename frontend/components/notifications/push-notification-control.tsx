@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { Bell, BellOff, Rocket, Sparkles, ShieldCheck, Info } from "lucide-react";
+import { Bell, BellOff, Rocket, Sparkles, ShieldCheck, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -296,17 +296,24 @@ export default function PushNotificationControl() {
 
         {isOpen && (
           <div className="absolute bottom-16 right-0 w-[290px] rounded-2xl border bg-background/95 backdrop-blur-md p-4 shadow-2xl">
-            <div className="flex items-start justify-between mb-3">
-              <div>
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div className="min-w-0 pr-1">
                 <p className="text-sm font-semibold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
+                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
                   Rider Alerts Hub
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Push updates to your lock screen & desktop tray
                 </p>
               </div>
-              <Info className="h-4 w-4 text-muted-foreground" />
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Close notification settings"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
             <div className="rounded-xl border p-3 mb-3 bg-muted/40">

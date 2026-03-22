@@ -880,10 +880,7 @@ export default function Dashboard() {
             <h2 className="text-xl font-semibold">
               Upcoming Group Rides
               <Link href='/groups'>
-                <p
-                  className="text-xs ml-2 inline-block transition-all duration-300 hover:translate-y-[-2px] hover:underline"
-                  style={{ color: "rgb(42 140 238)" }}
-                >
+                <p className="text-xs ml-2 inline-block text-teal transition-all duration-300 hover:translate-y-[-2px] hover:underline">
                   View all Group
                 </p>
               </Link>
@@ -990,7 +987,7 @@ export default function Dashboard() {
                               <p className="text-muted-foreground">
                                 Estimated Distance
                               </p>
-                              <p className="font-medium">
+                              <p className="font-medium font-mono text-electric">
                                 {formatDistanceKm(metrics.distance)}
                               </p>
                             </div>
@@ -998,7 +995,7 @@ export default function Dashboard() {
                               <p className="text-muted-foreground">
                                 Est. Duration
                               </p>
-                              <p className="font-medium">
+                              <p className="font-medium font-mono text-electric">
                                 {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                               </p>
                             </div>
