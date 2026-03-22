@@ -5,11 +5,13 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import groupRoutes from './routes/groupRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import mapRoutes from './routes/mapRoutes.js';
 import corsOptions from './middleware/corsConfig.js';
 import cors from 'cors';
 import setupSocket from './socket/socketHandlers.js';
 
 dotenv.config();
+
 
 const app = express();
 const server = http.createServer(app);
@@ -22,6 +24,7 @@ app.set('io', io);
 
 app.use('/groups', groupRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/map', mapRoutes);
 
 connectDB();
 setupSocket(io);

@@ -13,13 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { 
-  Plus, 
-  Users, 
-  ArrowRight, 
-  Trash2, 
-  MapPin, 
-  Calendar, 
+import {
+  Plus,
+  Users,
+  ArrowRight,
+  Trash2,
+  MapPin,
+  Calendar,
   Clock,
   User
 } from "lucide-react";
@@ -33,6 +33,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
+import { fetchRouteMetrics, formatDistanceKm, formatDurationFromMinutes } from "@/lib/mapUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,46 +55,21 @@ interface Member {
   isOnline?: boolean;
 }
 
+type Coords = { lat: number; lng: number };
+
 interface Group {
   _id: string;
   name: string;
   code: string;
   source: string;
+  sourceCoords?: Coords;
   destination: string;
+  destinationCoords?: Coords;
   startTime: string;
   reachTime: string;
   members: Member[];
   createdBy: string;
   createdAt?: string;
-}
-
-// Simple distance calculation using Haversine formula
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
-
-function formatDistance(distance: number): string {
-  if (distance < 1) {
-    return `${(distance * 1000).toFixed(0)}m`;
-  }
-  return `${distance.toFixed(1)}km`;
-}
-
-function formatDuration(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  if (hours > 0) {
-    return `${hours}h ${mins}m`;
-  }
-  return `${mins}m`;
 }
 
 const GroupsPage = () => {
@@ -114,10 +90,6 @@ const GroupsPage = () => {
           return;
         }
 
-        if (activeGroups.length === 0 && archivedGroups.length === 0) {
-          router.push("/dashboard");
-          return;
-        }
         await new Promise(resolve => setTimeout(resolve, 800));
         setIsLoading(false);
       } catch (error) {
@@ -131,37 +103,39 @@ const GroupsPage = () => {
     };
 
     initializePage();
-    
+
     return () => {
       // Cleanup if needed
     };
   }, [user, isLoaded, activeGroups, archivedGroups, router, toast]);
 
-  // Calculate consistent metrics based on source and destination
-  const getGroupMetrics = async (source: string, destination: string) => {
-    const key = `${source}-${destination}`;
-    
-    // Check if we already have cached metrics
+  const getGroupMetrics = async (
+    source: string,
+    destination: string,
+    sourceCoords?: Coords,
+    destinationCoords?: Coords
+  ) => {
+    const key = `${source}-${destination}-${sourceCoords?.lat ?? ""},${sourceCoords?.lng ?? ""
+      }-${destinationCoords?.lat ?? ""},${destinationCoords?.lng ?? ""}`;
+
     if (groupMetrics.has(key)) {
       return groupMetrics.get(key);
     }
-    
-    // Use simple hash-based calculation for demo purposes
-    const hash = (source + destination).split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    
-    const fallbackMetrics = {
-      distance: Math.abs(100 + (hash % 400)),
-      duration: {
-        hours: Math.abs(1 + (hash % 9)),
-        minutes: Math.abs(hash % 60)
-      }
-    };
-    
-    setGroupMetrics(prev => new Map(prev).set(key, fallbackMetrics));
-    return fallbackMetrics;
+
+    try {
+      const metrics = await fetchRouteMetrics(
+        source,
+        destination,
+        sourceCoords,
+        destinationCoords
+      );
+      setGroupMetrics((prev) => new Map(prev).set(key, metrics));
+      return metrics;
+    } catch {
+      const fallback = { distance: 0, duration: { hours: 0, minutes: 0 } };
+      setGroupMetrics((prev) => new Map(prev).set(key, fallback));
+      return fallback;
+    }
   };
 
   // Load metrics for all groups on component mount
@@ -169,7 +143,12 @@ const GroupsPage = () => {
     const loadMetrics = async () => {
       const allGroups = [...activeGroups, ...archivedGroups];
       for (const group of allGroups) {
-        await getGroupMetrics(group.source, group.destination);
+        await getGroupMetrics(
+          group.source,
+          group.destination,
+          group.sourceCoords,
+          group.destinationCoords
+        );
       }
     };
     loadMetrics();
@@ -198,9 +177,8 @@ const GroupsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="flex-1 container max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 md:py-12">
-        <div className="flex flex-col gap-8">
+    <div className="flex-1 container max-w-7xl mx-auto pt-20 pb-6 px-4 sm:px-6 lg:px-8 md:pt-24 md:pb-12">
+      <div className="flex flex-col gap-8">
           {/* Header Section */}
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-bold tracking-tight">
@@ -210,7 +188,7 @@ const GroupsPage = () => {
               Manage your ride groups and see journey details
             </p>
           </div>
-          
+
           {/* Groups Stats Section */}
           <AnimatedSection className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Overview</h2>
@@ -233,21 +211,22 @@ const GroupsPage = () => {
                   </div>
                 </CardContent>
               </StatsCard>
-              
+
               <StatsCard>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Longest Journey</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center">
-                    <div className="mr-4 bg-accent/10 p-2 rounded-full">
-                      <MapPin className="h-5 w-5 text-accent" />
+                    <div className="mr-4 bg-electric/10 p-2 rounded-full">
+                      <MapPin className="h-5 w-5 text-electric" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">
-                        {activeGroups.length > 0 || archivedGroups.length > 0 ? 
-                          formatDistance(Math.max(...[...activeGroups, ...archivedGroups].map((g: Group) => {
-                            const key = `${g.source}-${g.destination}`;
+                      <div className="text-2xl font-bold font-mono text-electric">
+                        {activeGroups.length > 0 || archivedGroups.length > 0 ?
+                          formatDistanceKm(Math.max(...[...activeGroups, ...archivedGroups].map((g: Group) => {
+                            const key = `${g.source}-${g.destination}-${g.sourceCoords?.lat ?? ""},${g.sourceCoords?.lng ?? ""
+                              }-${g.destinationCoords?.lat ?? ""},${g.destinationCoords?.lng ?? ""}`;
                             return groupMetrics.get(key)?.distance || 0;
                           }))) : '0km'}
                       </div>
@@ -256,7 +235,7 @@ const GroupsPage = () => {
                   </div>
                 </CardContent>
               </StatsCard>
-              
+
               <StatsCard>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Fellow Riders</CardTitle>
@@ -277,18 +256,18 @@ const GroupsPage = () => {
               </StatsCard>
             </div>
           </AnimatedSection>
-          
+
           {/* Groups List Section */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Your Group Rides</h2>
               <div className="text-sm text-muted-foreground">
-                {activeGroups.length + archivedGroups.length > 0 
+                {activeGroups.length + archivedGroups.length > 0
                   ? `${activeGroups.length + archivedGroups.length} ${activeGroups.length + archivedGroups.length === 1 ? 'group' : 'groups'}`
                   : ''}
               </div>
             </div>
-            
+
             <div className="space-y-8">
               {/* Active Rides Section */}
               <div>
@@ -356,7 +335,8 @@ const GroupsPage = () => {
                               </div>
                             </div>
                             {(() => {
-                              const key = `${group.source}-${group.destination}`;
+                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${group.sourceCoords?.lng ?? ""
+                                }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                               const metrics = groupMetrics.get(key) || {
                                 distance: 0,
                                 duration: { hours: 0, minutes: 0 }
@@ -365,12 +345,12 @@ const GroupsPage = () => {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
                                     <p className="text-muted-foreground">Estimated Distance</p>
-                                    <p className="font-medium">{formatDistance(metrics.distance)}</p>
+                                    <p className="font-medium font-mono text-electric">{formatDistanceKm(metrics.distance)}</p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Est. Duration</p>
-                                    <p className="font-medium">
-                                      {formatDuration(metrics.duration.hours * 60 + metrics.duration.minutes)}
+                                    <p className="font-medium font-mono text-electric">
+                                      {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                                     </p>
                                   </div>
                                 </div>
@@ -490,7 +470,8 @@ const GroupsPage = () => {
                               </div>
                             </div>
                             {(() => {
-                              const key = `${group.source}-${group.destination}`;
+                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${group.sourceCoords?.lng ?? ""
+                                }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                               const metrics = groupMetrics.get(key) || {
                                 distance: 0,
                                 duration: { hours: 0, minutes: 0 }
@@ -499,12 +480,12 @@ const GroupsPage = () => {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
                                     <p className="text-muted-foreground">Estimated Distance</p>
-                                    <p className="font-medium">{formatDistance(metrics.distance)}</p>
+                                    <p className="font-medium font-mono text-electric">{formatDistanceKm(metrics.distance)}</p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Est. Duration</p>
-                                    <p className="font-medium">
-                                      {formatDuration(metrics.duration.hours * 60 + metrics.duration.minutes)}
+                                    <p className="font-medium font-mono text-electric">
+                                      {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                                     </p>
                                   </div>
                                 </div>
@@ -561,7 +542,6 @@ const GroupsPage = () => {
           </section>
         </div>
       </div>
-    </div>
   );
 };
 
@@ -632,7 +612,7 @@ const CardSkeleton = () => (
 );
 
 const GroupsSkeleton = () => (
-  <div className="flex-1 container max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-8">
+  <div className="flex-1 container max-w-7xl mx-auto pt-20 pb-6 px-4 sm:px-6 lg:px-8 space-y-8">
     <div className="space-y-2">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-4 w-96" />

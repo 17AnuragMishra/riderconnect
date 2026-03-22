@@ -1,7 +1,7 @@
 "use client";
 
 import "../[id]/chat.css";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,11 @@ import { useToast } from "@/hooks/use-toast";
 import MapComponent from "@/components/Map";
 import ChatTab from "@/components/Chat/ChatTab";
 import MemberTab from "@/components/Member/MemberTab";
+import { LastLocationTab } from "@/components/Chat/LastLocationTab";
 import axios from "axios";
 import io from "socket.io-client";
-import { BackgroundBeams } from "@/components/ui/background-beams";
+import { calculateDistance } from "@/lib/utils";
+import { getBestCurrentLocation, isAcceptableAccuracy } from "@/lib/geolocation";
 import ShareComponent from "./share";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -69,7 +71,9 @@ interface Group {
   name: string;
   code: string;
   source: string;
+  sourceCoords?: { lat: number; lng: number };
   destination: string;
+  destinationCoords?: { lat: number; lng: number };
   members: Member[];
   startTime: string;
   reachTime: string;
@@ -103,6 +107,8 @@ export default function GroupPage() {
   const [group, setGroup] = useState<Group | null>(null);
   const [isFetching, setIsFetching] = useState(true);
   const [activeTab, setActiveTab] = useState("chat");
+  const activeTabRef = useRef(activeTab);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const mounted = useRef(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -110,6 +116,7 @@ export default function GroupPage() {
   const [originalThreshold, setOriginalThreshold] = useState(1000);
   const [shareLocation, setShareLocation] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [focusedLocation, setFocusedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [qrCodeLoading, setQrCodeLoading] = useState(true);
@@ -119,6 +126,9 @@ export default function GroupPage() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const lastAccuracyRef = useRef<number | null>(null);
+  const lastUpdateTimeRef = useRef<number>(0);
   const resetInviteDialogState = () => {
     setQrCodeError(false);
     setShareLoading(null);
@@ -129,6 +139,10 @@ export default function GroupPage() {
   const [groupLocations, setGroupLocations] = useState<
     Map<string, { lat: number; lng: number }>
   >(new Map());
+  const groupLocationsArray = useMemo(
+    () => Array.from(groupLocations.entries()),
+    [groupLocations]
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -137,13 +151,18 @@ export default function GroupPage() {
     const fetchGroup = async () => {
       setIsFetching(true);
       try {
-        let fetchedGroup: Group | null = getGroup(groupId);
-        if (!fetchedGroup) {
-          const res = await axios.get(
-            `${API_BASE_URL}/groups?clerkId=${user.id}`
-          );
-          fetchedGroup = res.data.find((g: Group) => g._id === groupId) || null;
+        const cachedGroup = getGroup(groupId) as Group | null;
+        let fetchedGroup: Group | null = cachedGroup;
+
+        const res = await axios.get(
+          `${API_BASE_URL}/groups?clerkId=${user.id}`
+        );
+        const apiGroup = res.data.find((g: Group) => g._id === groupId) || null;
+
+        if (apiGroup) {
+          fetchedGroup = apiGroup;
         }
+
         if (!fetchedGroup) {
           toast({
             title: "Error",
@@ -173,6 +192,13 @@ export default function GroupPage() {
   }, [user, groupId, isLoaded, getGroup, toast, router]);
 
   useEffect(() => {
+    activeTabRef.current = activeTab;
+    if (activeTab === "chat") {
+      setUnreadChatCount(0);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
     if (activeTab === "chat") {
       socket.emit("viewingGroup", { groupId, clerkId: user.id });
@@ -182,9 +208,20 @@ export default function GroupPage() {
   useEffect(() => {
     if (!user || !groupId || !shareLocation || !isLoaded) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
+    let active = true;
+    const emitAccurateLocation = (
+      latitude: number,
+      longitude: number,
+      accuracy?: number
+    ) => {
+      const now = Date.now();
+      const last = lastLocationRef.current;
+      const previousAccuracy = lastAccuracyRef.current;
+
+      if (!last) {
+        lastLocationRef.current = { latitude, longitude };
+        lastAccuracyRef.current = typeof accuracy === "number" ? accuracy : null;
+        lastUpdateTimeRef.current = now;
         setLocation({ latitude, longitude });
         socket.emit("updateLocation", {
           groupId,
@@ -192,12 +229,83 @@ export default function GroupPage() {
           lat: latitude,
           lng: longitude,
         });
+        return;
+      }
+
+      const distance = calculateDistance(
+        last.latitude,
+        last.longitude,
+        latitude,
+        longitude
+      );
+
+      const movementThreshold = Math.max(
+        8,
+        Math.min((typeof accuracy === "number" ? accuracy : 12) / 2, 30)
+      );
+      const hasMovedEnough = distance >= movementThreshold;
+      const isClearlyMoreAccurate =
+        typeof accuracy === "number" &&
+        (!previousAccuracy || accuracy + 10 < previousAccuracy);
+      const shouldRefreshStationary = now - lastUpdateTimeRef.current >= 15000;
+
+      if (!hasMovedEnough && !(isClearlyMoreAccurate && shouldRefreshStationary)) {
+        return;
+      }
+
+      lastLocationRef.current = { latitude, longitude };
+      lastAccuracyRef.current = typeof accuracy === "number" ? accuracy : previousAccuracy;
+      lastUpdateTimeRef.current = now;
+
+      setLocation({ latitude, longitude });
+      socket.emit("updateLocation", {
+        groupId,
+        clerkId: user.id,
+        lat: latitude,
+        lng: longitude,
+      });
+    };
+
+    const primeLocation = async () => {
+      try {
+        const best = await getBestCurrentLocation({
+          desiredAccuracy: 40,
+          maxWaitMs: 12000,
+          minimumSamples: 2,
+          maximumAge: 0,
+        });
+
+        if (!active) return;
+        emitAccurateLocation(best.latitude, best.longitude, best.accuracy);
+      } catch (error) {
+        console.warn("Initial location fix error:", error);
+      }
+    };
+
+    primeLocation();
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+
+        if (!isAcceptableAccuracy(accuracy, 120) && lastLocationRef.current) {
+          return;
+        }
+
+        if (!isAcceptableAccuracy(accuracy, 250) && !lastLocationRef.current) {
+          return;
+        }
+
+        emitAccurateLocation(latitude, longitude, accuracy);
       },
-      (err) => console.error("Geolocation error:", err),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      (err) => console.warn("Geolocation error:", err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      active = false;
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [user, groupId, shareLocation, isLoaded]);
 
   useEffect(() => {
@@ -274,7 +382,31 @@ export default function GroupPage() {
         });
       }
     };
+
+    const fetchLocations = async () => {
+      try {
+        const res = await axios.get(
+          `${API_BASE_URL}/groups/locations/group/${groupId}`
+        );
+        const locations = res.data.data;
+        if (locations && Array.isArray(locations)) {
+          setGroupLocations((prev) => {
+            const newMap = new Map(prev);
+            locations.forEach((loc: any) => {
+              if (loc.lat && loc.lng) {
+                newMap.set(loc.clerkId, { lat: loc.lat, lng: loc.lng });
+              }
+            });
+            return newMap;
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch locations:", err);
+      }
+    };
+
     fetchMessages();
+    fetchLocations();
     socket.connect();
 
     socket.on("connect", () => {
@@ -304,6 +436,9 @@ export default function GroupPage() {
 
     socket.on("receiveMessage", (message: Message) => {
       setMessages((prev) => [...prev, message]);
+      if (activeTabRef.current !== "chat") {
+        setUnreadChatCount((prev) => prev + 1);
+      }
     });
 
     socket.on("memberStatusUpdate", (updatedMembers: Member[]) => {
@@ -515,7 +650,7 @@ export default function GroupPage() {
   }
 
   return (
-    <div className="flex max-h-screen flex-col">
+    <div className="flex h-[100dvh] pt-16 flex-col">
       <header className="sticky top-16 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4">
@@ -569,7 +704,7 @@ export default function GroupPage() {
               </TooltipProvider>
             </div>
           </div>
-          <div className="flex items-center gap-2">            
+          <div className="flex items-center gap-2">
             <Dialog
               open={inviteDialogOpen}
               onOpenChange={(open) => {
@@ -856,9 +991,18 @@ export default function GroupPage() {
                   <MapPin className="h-4 w-4" />
                   <span>Map</span>
                 </TabsTrigger>
-                <TabsTrigger value="chat" className="flex items-center gap-2">
+                <TabsTrigger value="chat" className="flex items-center gap-2 relative">
                   <MessageSquare className="h-4 w-4" />
                   <span>Chat</span>
+                  {unreadChatCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="last-location" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-orange-500" />
+                  <span>Last Location</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="members"
@@ -870,24 +1014,44 @@ export default function GroupPage() {
               </TabsList>
             </div>
           </div>
-          {/* Optional: Uncomment if BackgroundBeams is needed */}
-          <BackgroundBeams className="fixed inset-0 pointer-events-none z-0" />
           <div className="container py-6 px-4 flex-1 overflow-hidden">
             <TabsContent value="map" className="mt-0 h-full">
               {location ? (
                 <MapComponent
                   location={location}
-                  groupLocations={Array.from(groupLocations.entries())}
-                  members={group?.members}
-                  source={group?.source}
-                  destination={group?.destination}
+                  groupLocations={groupLocationsArray}
+                  members={group.members}
+                  source={group.source}
+                  sourceCoords={group.sourceCoords}
+                  destination={group.destination}
+                  destinationCoords={group.destinationCoords}
+                  focusedLocation={focusedLocation}
                 />
               ) : (
                 <p>Loading map...</p>
               )}
             </TabsContent>
             <TabsContent value="chat" className="mt-0 h-full">
-              <ChatTab members={group.members} groupId={groupId} />
+              <ChatTab
+                members={group.members}
+                groupId={groupId}
+                onViewLocation={(lat, lng) => {
+                  setFocusedLocation({ lat, lng });
+                  setActiveTab("map");
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="last-location" className="mt-0 h-full">
+              <LastLocationTab
+                members={group.members}
+                groupLocations={groupLocationsArray.map(([id, coords]) => ({ clerkId: id, ...coords }))}
+                distanceThreshold={group.distanceThreshold || 1000}
+                currentUserCoords={location ? { lat: location.latitude, lng: location.longitude } : null}
+                onViewLocation={(lat, lng) => {
+                  setFocusedLocation({ lat, lng });
+                  setActiveTab("map");
+                }}
+              />
             </TabsContent>
             <TabsContent value="members" className="mt-0 h-full">
               <MemberTab group={group} />

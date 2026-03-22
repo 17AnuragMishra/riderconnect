@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,74 +10,74 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MapPin, Users, Bell } from "lucide-react";
+import { MapPin, Users, Bell, Navigation, Menu } from "lucide-react";
 import { useUser, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { user, isLoaded } = useUser();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Don't show navbar on sign-in or sign-up pages
   if (pathname === "/sign-in" || pathname === "/sign-up") {
     return null;
   }
 
-  return (
-    <nav className="border-b bg-gradient-to-r from-primary/10 via-background to-primary/10 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-      <div className="container flex h-16 items-center justify-between px-3 sm:px-4">
-        <div className="flex items-center gap-3 transition-transform hover:scale-105">
-          <div className="bg-primary/10 p-2 rounded-full shadow-sm">
-            <MapPin className="h-6 w-6 text-primary" />
-          </div>
-          <Link href="/" className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 hover:from-primary/80 hover:to-primary transition-colors duration-300">
-            RiderConnect
-          </Link>
-        </div>
+  const isLanding = pathname === "/";
 
+  return (
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-400 ${scrolled
+          ? "glass border-b border-border/50 shadow-sm"
+          : isLanding
+            ? "bg-transparent"
+            : "bg-background/90 backdrop-blur-sm border-b border-border/50"
+        }`}
+    >
+      <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 rounded-full bg-teal/10 border border-teal/30 flex items-center justify-center group-hover:bg-teal/20 transition-colors duration-300">
+            <Navigation size={16} className="text-teal" />
+          </div>
+          <span className="font-display text-lg font-bold tracking-tight">
+            RIDER<span className="text-teal">CONNECT</span>
+          </span>
+        </Link>
+
+        {/* Desktop signed-in navigation */}
         <SignedIn>
-          <div className="hidden md:flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button 
-                variant={pathname === "/dashboard" ? "default" : "ghost"} 
-                className={`transition-all duration-300 hover:scale-105 hover:shadow-md ${
-                  pathname === "/dashboard" 
-                    ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90" 
-                    : "hover:bg-primary/20 hover:text-primary font-medium"
-                }`}
-              >
-                Dashboard
-              </Button>
-            </Link>
-            <Link href="/groups">
-              <Button 
-                variant={pathname.startsWith("/groups") ? "default" : "ghost"}
-                className={`transition-all duration-300 hover:scale-105 hover:shadow-md ${
-                  pathname.startsWith("/groups") 
-                    ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90" 
-                    : "hover:bg-primary/20 hover:text-primary font-medium"
-                }`}
-              >
-                <Users className="mr-2 h-4 w-4 group-hover:animate-pulse" />
-                Groups
-              </Button>
-            </Link>
-            <Link href="/notifications">
-              <Button 
-                variant={pathname === "/notifications" ? "default" : "ghost"}
-                className={`transition-all duration-300 hover:scale-105 hover:shadow-md ${
-                  pathname === "/notifications" 
-                    ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90" 
-                    : "hover:bg-primary/20 hover:text-primary font-medium"
-                }`}
-              >
-                <Bell className="mr-2 h-4 w-4 group-hover:animate-pulse" />
-                Notifications
-              </Button>
-            </Link>
+          <div className="hidden md:flex items-center gap-1">
+            {[
+              { label: "Dashboard", href: "/dashboard", active: pathname === "/dashboard" },
+              { label: "Groups", href: "/groups", icon: Users, active: pathname.startsWith("/groups") },
+              { label: "Notifications", href: "/notifications", icon: Bell, active: pathname === "/notifications" },
+            ].map(({ label, href, icon: Icon, active }) => (
+              <Link key={href} href={href}>
+                <Button
+                  variant={active ? "default" : "ghost"}
+                  size="sm"
+                  className={`transition-all duration-200 text-sm font-medium ${active
+                      ? "bg-teal text-teal-foreground hover:bg-teal/90"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                >
+                  {Icon && <Icon className="mr-1.5 h-3.5 w-3.5" />}
+                  {label}
+                </Button>
+              </Link>
+            ))}
           </div>
         </SignedIn>
 
+        {/* Right side */}
         <div className="flex items-center gap-2 sm:gap-3">
           <SignedIn>
             <div className="flex items-center gap-2">
@@ -85,75 +86,49 @@ export default function Navbar() {
                   afterSignOutUrl="/"
                   appearance={{
                     elements: {
-                      userButtonAvatarBox: "h-8 w-8 border-2 border-primary/30 shadow-sm",
+                      userButtonAvatarBox: "h-8 w-8 border-2 border-teal/20 shadow-sm",
                       userButtonTrigger: "hover:shadow-md transition-all duration-300",
                     },
                   }}
                 />
               </div>
-              
-              {/* ThemeToggle - visible on all screen sizes */}
-              <div className="flex">
-                <ThemeToggle />
-              </div>
+              <ThemeToggle />
             </div>
 
-            {/* Mobile menu for smaller screens */}
+            {/* Mobile menu */}
             <div className="md:hidden ml-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    className="transition-all duration-300 hover:scale-110 hover:shadow-md hover:bg-primary/20 hover:text-primary border-primary/20"
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="border-border/50 hover:border-teal/40 hover:text-teal h-9 w-9"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-[1.2rem] w-[1.2rem] text-primary"
-                    >
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="18" x2="21" y2="18" />
-                    </svg>
+                    <Menu size={18} />
                     <span className="sr-only">Menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="bg-gradient-to-b from-background to-background/95 backdrop-blur-sm border-primary/20 shadow-lg rounded-xl p-2 min-w-[200px] animate-in zoom-in-90 duration-200"
+                <DropdownMenuContent
+                  align="end"
+                  className="glass border-border/50 shadow-lg rounded-xl p-2 min-w-[200px] animate-in zoom-in-90 duration-200"
                 >
-                  <DropdownMenuItem 
-                    asChild 
-                    className={`my-1.5 rounded-lg transition-colors hover:bg-primary/20 hover:text-primary focus:bg-primary/20 focus:text-primary ${pathname === "/dashboard" ? "bg-primary/30 text-primary font-medium" : ""}`}
-                  >
-                    <Link href="/dashboard" className="flex items-center py-2.5 px-2 text-base">Dashboard</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    asChild 
-                    className={`my-1.5 rounded-lg transition-colors hover:bg-primary/20 hover:text-primary focus:bg-primary/20 focus:text-primary ${pathname.startsWith("/groups") ? "bg-primary/30 text-primary font-medium" : ""}`}
-                  >
-                    <Link href="/groups" className="flex items-center py-2.5 px-2 text-base">
-                      <Users className="mr-2 h-5 w-5" />
-                      Groups
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    asChild 
-                    className={`my-1.5 rounded-lg transition-colors hover:bg-primary/20 hover:text-primary focus:bg-primary/20 focus:text-primary ${pathname === "/notifications" ? "bg-primary/30 text-primary font-medium" : ""}`}
-                  >
-                    <Link href="/notifications" className="flex items-center py-2.5 px-2 text-base">
-                      <Bell className="mr-2 h-5 w-5" />
-                      Notifications
-                    </Link>
-                  </DropdownMenuItem>
+                  {[
+                    { label: "Dashboard", href: "/dashboard", active: pathname === "/dashboard" },
+                    { label: "Groups", href: "/groups", icon: Users, active: pathname.startsWith("/groups") },
+                    { label: "Notifications", href: "/notifications", icon: Bell, active: pathname === "/notifications" },
+                  ].map(({ label, href, icon: Icon, active }) => (
+                    <DropdownMenuItem
+                      key={href}
+                      asChild
+                      className={`my-1 rounded-lg transition-colors ${active ? "bg-teal/10 text-teal font-medium" : "hover:bg-teal/5 hover:text-teal"
+                        }`}
+                    >
+                      <Link href={href} className="flex items-center py-2.5 px-2 text-sm">
+                        {Icon && <Icon className="mr-2 h-4 w-4" />}
+                        {label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -161,71 +136,71 @@ export default function Navbar() {
 
           <SignedOut>
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Theme toggle - always visible */}
-              <div className="flex items-center">
-                <ThemeToggle />
-              </div>
-              
-              {/* Auth buttons - visible on medium screens and up */}
-              <div className="hidden md:flex items-center gap-2 sm:gap-3">
+              <ThemeToggle />
+
+              {/* Desktop auth */}
+              <div className="hidden md:flex items-center gap-2">
+                {isLanding && (
+                  <div className="hidden md:flex items-center gap-5 mr-4">
+                    {["Features", "How It Works", "FAQ"].map(item => (
+                      <a
+                        key={item}
+                        href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
+                        className="text-sm text-muted-foreground hover:text-teal transition-colors duration-200"
+                      >
+                        {item}
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <Link href="/sign-in">
-                  <Button 
-                    variant="outline" 
-                    className="transition-all duration-300 hover:scale-105 hover:shadow-md border-primary/30 hover:border-primary hover:bg-primary/10 hover:text-primary font-medium"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-border/50 hover:border-teal/40 hover:text-teal font-medium text-sm"
                   >
                     Sign In
                   </Button>
                 </Link>
                 <Link href="/sign-up">
-                  <Button 
-                    className="transition-all duration-300 hover:scale-105 hover:shadow-md bg-gradient-to-r from-primary to-primary/80 hover:from-primary hover:to-primary font-medium text-primary-foreground"
+                  <Button
+                    size="sm"
+                    className="bg-teal text-teal-foreground hover:bg-teal/90 font-medium shadow-glow-teal text-sm"
                   >
                     Sign Up
                   </Button>
                 </Link>
               </div>
-              
-              {/* Mobile menu for smaller screens */}
+
+              {/* Mobile auth menu */}
               <div className="md:hidden ml-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="transition-all duration-300 hover:scale-110 hover:shadow-md hover:bg-primary/20 hover:text-primary border-primary/20"
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="border-border/50 hover:border-teal/40 hover:text-teal h-9 w-9"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-[1.2rem] w-[1.2rem] text-primary"
-                      >
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <line x1="3" y1="12" x2="21" y2="12" />
-                        <line x1="3" y1="18" x2="21" y2="18" />
-                      </svg>
+                      <Menu size={18} />
                       <span className="sr-only">Menu</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent 
-                    align="end" 
-                    className="bg-gradient-to-b from-background to-background/95 backdrop-blur-sm border-primary/20 shadow-lg rounded-xl p-2 min-w-[200px] animate-in zoom-in-90 duration-200"
+                  <DropdownMenuContent
+                    align="end"
+                    className="glass border-border/50 shadow-lg rounded-xl p-2 min-w-[200px] animate-in zoom-in-90 duration-200"
                   >
-                    <DropdownMenuItem asChild className="my-1.5 rounded-lg transition-colors hover:bg-primary/20 hover:text-primary focus:bg-primary/20 focus:text-primary">
-                      <Link href="/sign-in" className="flex items-center py-2.5 px-2 text-base">
-                        Sign In
-                      </Link>
+                    {isLanding && ["Features", "How It Works", "FAQ"].map(item => (
+                      <DropdownMenuItem key={item} asChild className="my-1 rounded-lg hover:bg-teal/5 hover:text-teal">
+                        <a href={`#${item.toLowerCase().replace(/\s+/g, "-")}`} className="py-2.5 px-2 text-sm">
+                          {item}
+                        </a>
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuItem asChild className="my-1 rounded-lg hover:bg-teal/5 hover:text-teal">
+                      <Link href="/sign-in" className="py-2.5 px-2 text-sm">Sign In</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="my-1.5 rounded-lg transition-colors hover:bg-primary/20 hover:text-primary focus:bg-primary/20 focus:text-primary">
-                      <Link href="/sign-up" className="flex items-center py-2.5 px-2 text-base font-medium">
-                        Sign Up
-                      </Link>
+                    <DropdownMenuItem asChild className="my-1 rounded-lg hover:bg-teal/5 hover:text-teal">
+                      <Link href="/sign-up" className="py-2.5 px-2 text-sm font-medium">Sign Up</Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

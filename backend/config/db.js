@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Group from '../models/Group.js';
 import UserLocation from '../models/UserLocation.js';
 import Notification from '../models/Notification.js';
+import PushSubscription from '../models/PushSubscription.js';
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
@@ -9,6 +10,7 @@ const connectDB = async () => {
     await Group.createIndexes();
     await UserLocation.createIndexes();
     await Notification.createIndexes();
+    await PushSubscription.createIndexes();
   } catch (err) {
     console.error('MongoDB connection error:', err);
     process.exit(1);

@@ -8,8 +8,17 @@ import { useUser } from "@clerk/nextjs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Send, MapPin, WifiOff, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+interface LocationData {
+  lat: number;
+  lng: number;
+  riderName: string;
+  reason: string;
+}
 
 interface Message {
   _id: string;
@@ -17,21 +26,30 @@ interface Message {
   senderId: string;
   senderName: string;
   content: string;
+  type?: string;
+  locationData?: LocationData;
   timestamp: Date;
 }
 
 interface ChatTabProps {
   groupId: string;
   members?: { clerkId: string; name: string; avatar?: string }[];
+  onViewLocation?: (lat: number, lng: number) => void;
 }
 
-const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL, {
-  auth: {
-    userId: "clerk id",
-  },
+const socket: Socket = io(API_BASE_URL, {
+  autoConnect: false,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
 });
 
-function ChatTab({ groupId, members }: ChatTabProps) {
+
+
+
+// ─── Main ChatTab Component ───────────────────────────────────────────────────
+
+function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
   const { user } = useUser();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -40,13 +58,16 @@ function ChatTab({ groupId, members }: ChatTabProps) {
   const initialized = useRef(false);
   const [tagging, setTagging] = useState(false);
   const [space, setSpace] = useState(true);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const fetchMessages = async (groupId: string): Promise<Message[]> => {
-    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/groups/messages/group/${groupId}`);
-    console.log(res.data);
+    const res = await axios.get(`${API_BASE_URL}/groups/messages/group/${groupId}`);
     setMessages(res.data.data);
     return res.data.data;
   };
-  const { data: initialMessages, isLoading } = useQuery({
+
+  const { data: initialMessages } = useQuery({
     queryKey: ["messages", groupId],
     queryFn: () => fetchMessages(groupId),
     enabled: !!groupId,
@@ -60,16 +81,34 @@ function ChatTab({ groupId, members }: ChatTabProps) {
     if (!user || !groupId || initialized.current) return;
 
     socket.connect();
-    socket.emit("join", { clerkId: user.id, groupId });
+
+    const handleConnect = () => {
+      socket.emit("join", { clerkId: user.id, groupId });
+    };
+
+    const handleReconnect = () => {
+      socket.emit("join", { clerkId: user.id, groupId });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("reconnect", handleReconnect);
+
+    if (socket.connected) {
+      socket.emit("join", { clerkId: user.id, groupId });
+    }
+
     initialized.current = true;
 
     socket.on("receiveMessage", (message: Message) => {
       setMessages((prev) => [...prev, message]);
 
-      setTimeout(() => {
-        const audio = new Audio("/Discordnotification.mp3"); // Public folder se load hoga
-        audio.play().catch((err) => console.log("Audio play error:", err));
-      }, 300);
+      // Only play notification sound for regular chat messages
+      if (message.type !== "location") {
+        setTimeout(() => {
+          const audio = new Audio("/Discordnotification.mp3");
+          audio.play().catch((err) => console.log("Audio play error:", err));
+        }, 300);
+      }
     });
 
     socket.on("notification", (notification) => {
@@ -88,9 +127,31 @@ function ChatTab({ groupId, members }: ChatTabProps) {
       }
     });
 
+    socket.on("userTyping", ({ clerkName }) => {
+      setTypingUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(clerkName);
+        return newSet;
+      });
+    });
+
+    socket.on("userStoppedTyping", ({ clerkName }) => {
+      setTypingUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(clerkName);
+        return newSet;
+      });
+    });
+
     return () => {
+      socket.off("connect", handleConnect);
+      socket.off("reconnect", handleReconnect);
       socket.off("receiveMessage");
       socket.off("notification");
+      socket.off("userTyping");
+      socket.off("userStoppedTyping");
+      socket.disconnect();
+      initialized.current = false;
     };
   }, [user, groupId]);
 
@@ -133,9 +194,34 @@ function ChatTab({ groupId, members }: ChatTabProps) {
     setNewMessage((prev) => prev + name + " ");
     setSpace(true);
   };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    checkingMessage(e);
+
+    if (user && user.firstName) {
+      socket.emit("typing", { groupId, clerkName: user.firstName });
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit("stopTyping", { groupId, clerkName: user.firstName });
+      }, 2000);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[70vh]">
       <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center min-h-[min(280px,45vh)] px-6 py-10 text-center border border-dashed border-border/60 rounded-xl bg-muted/20">
+            <p className="text-sm font-semibold text-foreground mb-1">Welcome to group chat</p>
+            <p className="text-sm text-muted-foreground max-w-[280px]">
+              No messages yet — be the first to say hello, share updates, or coordinate your ride with the group.
+            </p>
+          </div>
+        )}
         {messages.map((message) => {
           const sender =
             message.senderId === "system"
@@ -161,10 +247,10 @@ function ChatTab({ groupId, members }: ChatTabProps) {
                 <div>
                   <div
                     className={`rounded-lg px-3 py-2 ${isYou
-                        ? "bg-primary text-primary-foreground"
-                        : message.senderId === "system"
-                          ? "bg-muted text-center"
-                          : "bg-muted"
+                      ? "bg-primary text-primary-foreground"
+                      : message.senderId === "system"
+                        ? "bg-muted text-center"
+                        : "bg-muted"
                       }`}
                   >
                     <p>{message.content}</p>
@@ -206,6 +292,17 @@ function ChatTab({ groupId, members }: ChatTabProps) {
         )}
       </div>
 
+      {typingUsers.size > 0 && (
+        <div className="px-4 py-2 text-xs text-muted-foreground italic flex items-center gap-1 animate-pulse">
+          {Array.from(typingUsers).join(", ")} {typingUsers.size === 1 ? 'is' : 'are'} typing
+          <span className="flex gap-0.5">
+            <span className="animate-bounce inline-block">.</span>
+            <span className="animate-bounce inline-block" style={{ animationDelay: '150ms' }}>.</span>
+            <span className="animate-bounce inline-block" style={{ animationDelay: '300ms' }}>.</span>
+          </span>
+        </div>
+      )}
+
       <div className="border-t pt-4 fix-bottom">
         <form
           className="flex gap-2"
@@ -217,7 +314,7 @@ function ChatTab({ groupId, members }: ChatTabProps) {
           <Input
             placeholder="Type your message..."
             value={newMessage}
-            onChange={(e) => checkingMessage(e)}
+            onChange={handleInputChange}
           />
           <Button type="submit">
             <Send className="h-4 w-4" />

@@ -18,9 +18,11 @@ interface Group {
   name: string;
   code: string;
   source: string;
+  sourceCoords?: { lat: number; lng: number };
   startTime: string;
   reachTime: string;
   destination: string;
+  destinationCoords?: { lat: number; lng: number };
   members: Member[];
   isActive: boolean;
   createdBy: string;
@@ -112,13 +114,23 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, isLoaded]);
 
-  const createGroup = async (name: string, source: string, destination: string, startTime: string, reachTime: string): Promise<Group> => {
+  const createGroup = async (
+    name: string,
+    source: string,
+    destination: string,
+    startTime: string,
+    reachTime: string,
+    sourceCoords?: { lat: number; lng: number } | null,
+    destinationCoords?: { lat: number; lng: number } | null
+  ): Promise<Group> => {
     if (!user) throw new Error("User not authenticated");
     try {
       const res = await axios.post(`${API_BASE_URL}/groups/create`, {
         name,
         source,
         destination,
+        sourceCoords,
+        destinationCoords,
         clerkId: user.id,
         clerkName: user.firstName || "User",
         clerkAvatar: user.imageUrl || "",

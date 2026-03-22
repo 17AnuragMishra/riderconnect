@@ -34,8 +34,8 @@ const NotificationSkeleton = () => {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div 
-          key={i} 
+        <div
+          key={i}
           className="p-3.5 sm:p-4 border rounded-lg animate-pulse bg-card border-border"
         >
           <div className="flex items-start gap-2.5 sm:gap-3 overflow-hidden">
@@ -58,18 +58,18 @@ const NotificationSkeleton = () => {
   );
 };
 // Component for individual notification cards
-const NotificationCard = ({ 
-  notification, 
+const NotificationCard = ({
+  notification,
   markAsRead,
   isUnread
-}: { 
-  notification: Notification; 
-  markAsRead: (id: string) => void; 
+}: {
+  notification: Notification;
+  markAsRead: (id: string) => void;
   isUnread: boolean;
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  
+
   // Format the timestamp as relative time
   const getRelativeTime = (timeString: string) => {
     try {
@@ -79,10 +79,10 @@ const NotificationCard = ({
       return timeString;
     }
   };
-  
+
   // Determine priority styling
   const getPriorityStyles = () => {
-    switch(notification.priority) {
+    switch (notification.priority) {
       case "high":
         return {
           bg: "bg-[hsl(var(--priority-high)/0.15)]",
@@ -113,10 +113,10 @@ const NotificationCard = ({
         };
     }
   };
-  
+
   // Determine notification type icon and styling
   const getTypeStyles = () => {
-    switch(notification.type) {
+    switch (notification.type) {
       case "message":
         return {
           bg: "bg-[hsl(var(--type-message)/0.15)]",
@@ -157,7 +157,7 @@ const NotificationCard = ({
   };
   const priorityStyles = getPriorityStyles();
   const typeStyles = getTypeStyles();
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -178,7 +178,7 @@ const NotificationCard = ({
         )}>
           {typeStyles.icon}
         </div>
-        
+
         <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1.5 sm:mb-1 gap-1 sm:gap-0 w-full">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 max-w-[calc(100%-3rem)] sm:max-w-[70%]">
@@ -201,11 +201,11 @@ const NotificationCard = ({
               {getRelativeTime(notification.time)}
             </time>
           </div>
-          
+
           <p className="text-sm text-foreground line-clamp-3 sm:line-clamp-2 md:line-clamp-none break-words overflow-hidden text-ellipsis max-w-full">
             {notification.message}
           </p>
-          
+
           <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-2.5 sm:gap-2 mt-3 sm:mt-3.5 w-full">
             <Badge variant="outline" className={clsx(
               "text-xs h-7 sm:h-6 inline-flex items-center justify-center px-2 truncate max-w-full sm:max-w-[50%]",
@@ -214,7 +214,7 @@ const NotificationCard = ({
               {typeStyles.icon}
               <span className="ml-1 truncate">{notification.type}</span>
             </Badge>
-            
+
             {isUnread && (
               <Button
                 size="sm"
@@ -337,7 +337,7 @@ const Page = () => {
       });
       if (!response.ok) throw new Error('Failed to mark all as read');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      toast({ 
+      toast({
         title: "All notifications marked as read",
         description: "Your notification list has been updated",
       });
@@ -364,7 +364,7 @@ const Page = () => {
   if (!isLoaded) {
     return (
       <div className={clsx(
-        "min-h-screen p-6 flex items-center justify-center",
+        "min-h-screen p-6 pt-20 md:pt-24 flex items-center justify-center",
         "bg-background text-foreground"
       )}>
         <div className="text-center">
@@ -385,7 +385,7 @@ const Page = () => {
 
   return (
     <div className={clsx(
-      "min-h-screen p-3.5 sm:p-4 md:p-6 transition-colors duration-200 overflow-x-hidden",
+      "min-h-screen p-3.5 pt-20 sm:p-4 sm:pt-20 md:p-6 md:pt-24 transition-colors duration-200 overflow-x-hidden",
       "bg-background text-foreground"
     )}>
       <div className="max-w-4xl mx-auto">
@@ -409,19 +409,19 @@ const Page = () => {
           </Button>
         </div>
 
-        <Tabs 
-          defaultValue="unread" 
-          value={activeTab} 
+        <Tabs
+          defaultValue="unread"
+          value={activeTab}
           onValueChange={(value) => setActiveTab(value as "unread" | "read")}
           className="mb-5 sm:mb-6"
         >
-          <TabsList 
+          <TabsList
             className={clsx(
               "grid w-full grid-cols-2 mb-5 sm:mb-6 h-12 sm:h-11",
               "bg-muted rounded-md"
             )}
           >
-            <TabsTrigger 
+            <TabsTrigger
               value="unread"
               className="text-sm sm:text-base py-2.5 px-3 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center transition-all duration-200"
             >
@@ -430,7 +430,7 @@ const Page = () => {
                 {unread.length}
               </span>
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="read"
               className="text-sm sm:text-base py-2.5 px-3 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center justify-center transition-all duration-200"
             >
@@ -470,7 +470,7 @@ const Page = () => {
               </div>
             )}
           </TabsContent>
-          
+
           <TabsContent value="read" className="mt-0">
             {loading ? (
               <NotificationSkeleton />
