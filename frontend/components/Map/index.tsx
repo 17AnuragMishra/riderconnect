@@ -19,6 +19,7 @@ import { Info } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn, calculateDistance } from "@/lib/utils";
 import { parseCoordinatesFromLocationInput } from "@/lib/locationParsing";
+import { geocode } from "@/lib/mapUtils";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -243,71 +244,16 @@ export default function MapComponent({
     }
 
     const key = place.trim().toLowerCase();
-
     if (coordinateCache.has(key)) {
       return coordinateCache.get(key)!;
     }
 
-    // Try backend geocode with caching first
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/map/geocode?q=${encodeURIComponent(place)}`
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data && typeof data.lat === "number" && typeof data.lng === "number") {
-          const coords: LatLng = [data.lat, data.lng];
-          coordinateCache.set(key, coords);
-          return coords;
-        }
-      } else {
-        const text = await res.text().catch(() => "");
-        console.warn(
-          "Backend geocode failed:",
-          place,
-          res.status,
-          text || res.statusText
-        );
-      }
-    } catch (error) {
-      console.error("Backend geocode error:", place, error);
+    const resolved = await geocode(place);
+    if (resolved && Number.isFinite(resolved.lat) && Number.isFinite(resolved.lng)) {
+      const coords: LatLng = [resolved.lat, resolved.lng];
+      coordinateCache.set(key, coords);
+      return coords;
     }
-
-    // Fallback: call Nominatim directly (previous behavior)
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          place
-        )}`
-      );
-
-      if (!res.ok) {
-        console.error(
-          "Fallback geocode failed:",
-          place,
-          res.status,
-          res.statusText
-        );
-        return null;
-      }
-
-      const data = await res.json();
-
-      if (Array.isArray(data) && data.length > 0) {
-        const coords: LatLng = [
-          parseFloat(data[0].lat),
-          parseFloat(data[0].lon),
-        ];
-        if (Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
-          coordinateCache.set(key, coords);
-          return coords;
-        }
-      }
-    } catch (error) {
-      console.error("Fallback geocode error:", place, error);
-    }
-
     return null;
   }
 
@@ -611,12 +557,16 @@ export default function MapComponent({
             : await fetchCoordinates(destination);
         setLoadingProgress(70);
 
+        setSrcCoords(from ?? null);
+        setDstCoords(to ?? null);
         if (from && to) {
-          setSrcCoords(from);
-          setDstCoords(to);
           await fetchRoute(from, to);
-          setLoadingProgress(100);
+        } else {
+          setRouteCoords([]);
+          setAvailableRoutes([]);
+          setRouteInfo(null);
         }
+        setLoadingProgress(100);
       } catch (error) {
         console.error("Error loading map data:", error);
       } finally {

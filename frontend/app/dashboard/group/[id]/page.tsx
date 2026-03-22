@@ -107,6 +107,8 @@ export default function GroupPage() {
   const [group, setGroup] = useState<Group | null>(null);
   const [isFetching, setIsFetching] = useState(true);
   const [activeTab, setActiveTab] = useState("chat");
+  const activeTabRef = useRef(activeTab);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const mounted = useRef(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -188,6 +190,13 @@ export default function GroupPage() {
 
     fetchGroup();
   }, [user, groupId, isLoaded, getGroup, toast, router]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+    if (activeTab === "chat") {
+      setUnreadChatCount(0);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (!user || !groupId || !isLoaded) return;
@@ -427,6 +436,9 @@ export default function GroupPage() {
 
     socket.on("receiveMessage", (message: Message) => {
       setMessages((prev) => [...prev, message]);
+      if (activeTabRef.current !== "chat") {
+        setUnreadChatCount((prev) => prev + 1);
+      }
     });
 
     socket.on("memberStatusUpdate", (updatedMembers: Member[]) => {
@@ -979,9 +991,14 @@ export default function GroupPage() {
                   <MapPin className="h-4 w-4" />
                   <span>Map</span>
                 </TabsTrigger>
-                <TabsTrigger value="chat" className="flex items-center gap-2">
+                <TabsTrigger value="chat" className="flex items-center gap-2 relative">
                   <MessageSquare className="h-4 w-4" />
                   <span>Chat</span>
+                  {unreadChatCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                    </span>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger value="last-location" className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-orange-500" />

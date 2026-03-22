@@ -1,10 +1,9 @@
 import express from 'express';
-import GeoCache from '../models/GeoCache.js';
 import RouteCache from '../models/RouteCache.js';
+import { geocode } from '../utils/geocode.js';
 
 const router = express.Router();
 
-const GEO_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
 const ROUTE_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
 
 router.get('/geocode', async (req, res) => {
@@ -14,60 +13,12 @@ router.get('/geocode', async (req, res) => {
     return res.status(400).json({ error: 'q is required' });
   }
 
-  const normalized = q.toLowerCase();
-
   try {
-    const cached = await GeoCache.findOne({ query: normalized });
-
-    if (cached && Date.now() - cached.updatedAt.getTime() < GEO_TTL_MS) {
-      return res.json({
-        lat: cached.lat,
-        lng: cached.lng,
-        fromCache: true,
-      });
-    }
-
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-      q
-    )}`;
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'RiderConnect/1.0 (contact@riderconnect.local)',
-      },
-    });
-
-    if (!response.ok) {
-      return res
-        .status(502)
-        .json({ error: 'Failed to fetch from geocoding service' });
-    }
-
-    const data = await response.json();
-
-    if (!Array.isArray(data) || data.length === 0) {
+    const result = await geocode(q);
+    if (!result) {
       return res.status(404).json({ error: 'No results for query' });
     }
-
-    const first = data[0];
-    const lat = parseFloat(first.lat);
-    const lng = parseFloat(first.lon);
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return res.status(500).json({ error: 'Invalid geocode data' });
-    }
-
-    await GeoCache.findOneAndUpdate(
-      { query: normalized },
-      { query: normalized, lat, lng },
-      { upsert: true, new: true }
-    );
-
-    return res.json({
-      lat,
-      lng,
-      fromCache: false,
-    });
+    return res.json({ lat: result.lat, lng: result.lng });
   } catch (err) {
     console.error('Geocode error:', err);
     return res.status(500).json({ error: 'Internal server error' });

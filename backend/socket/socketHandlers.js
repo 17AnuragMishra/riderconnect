@@ -198,6 +198,14 @@ const setupSocket = (io) => {
       }
     });
 
+    socket.on('typing', ({ groupId, clerkName }) => {
+      socket.to(groupId.toString()).emit('userTyping', { clerkName });
+    });
+
+    socket.on('stopTyping', ({ groupId, clerkName }) => {
+      socket.to(groupId.toString()).emit('userStoppedTyping', { clerkName });
+    });
+
     socket.on('viewingGroup', ({ groupId, clerkId }) => {
       const groupIdStr = groupId.toString();
       viewingState[clerkId] = groupIdStr;

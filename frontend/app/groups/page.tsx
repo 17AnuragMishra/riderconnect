@@ -33,7 +33,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
-import { fetchRouteMetrics } from "@/lib/mapUtils";
+import { fetchRouteMetrics, formatDistanceKm, formatDurationFromMinutes } from "@/lib/mapUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,22 +72,6 @@ interface Group {
   createdAt?: string;
 }
 
-function formatDistance(distance: number): string {
-  if (distance < 1) {
-    return `${(distance * 1000).toFixed(0)}m`;
-  }
-  return `${distance.toFixed(1)}km`;
-}
-
-function formatDuration(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  if (hours > 0) {
-    return `${hours}h ${mins}m`;
-  }
-  return `${mins}m`;
-}
-
 const GroupsPage = () => {
   const { user, isLoaded } = useUser();
   const { activeGroups, archivedGroups, deleteGroup } = useGroups();
@@ -106,10 +90,6 @@ const GroupsPage = () => {
           return;
         }
 
-        if (activeGroups.length === 0 && archivedGroups.length === 0) {
-          router.push("/dashboard");
-          return;
-        }
         await new Promise(resolve => setTimeout(resolve, 800));
         setIsLoading(false);
       } catch (error) {
@@ -135,9 +115,8 @@ const GroupsPage = () => {
     sourceCoords?: Coords,
     destinationCoords?: Coords
   ) => {
-    const key = `${source}-${destination}-${sourceCoords?.lat ?? ""},${
-      sourceCoords?.lng ?? ""
-    }-${destinationCoords?.lat ?? ""},${destinationCoords?.lng ?? ""}`;
+    const key = `${source}-${destination}-${sourceCoords?.lat ?? ""},${sourceCoords?.lng ?? ""
+      }-${destinationCoords?.lat ?? ""},${destinationCoords?.lng ?? ""}`;
 
     if (groupMetrics.has(key)) {
       return groupMetrics.get(key);
@@ -246,10 +225,9 @@ const GroupsPage = () => {
                     <div>
                       <div className="text-2xl font-bold">
                         {activeGroups.length > 0 || archivedGroups.length > 0 ?
-                          formatDistance(Math.max(...[...activeGroups, ...archivedGroups].map((g: Group) => {
-                            const key = `${g.source}-${g.destination}-${g.sourceCoords?.lat ?? ""},${
-                              g.sourceCoords?.lng ?? ""
-                            }-${g.destinationCoords?.lat ?? ""},${g.destinationCoords?.lng ?? ""}`;
+                          formatDistanceKm(Math.max(...[...activeGroups, ...archivedGroups].map((g: Group) => {
+                            const key = `${g.source}-${g.destination}-${g.sourceCoords?.lat ?? ""},${g.sourceCoords?.lng ?? ""
+                              }-${g.destinationCoords?.lat ?? ""},${g.destinationCoords?.lng ?? ""}`;
                             return groupMetrics.get(key)?.distance || 0;
                           }))) : '0km'}
                       </div>
@@ -358,9 +336,8 @@ const GroupsPage = () => {
                               </div>
                             </div>
                             {(() => {
-                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${
-                                group.sourceCoords?.lng ?? ""
-                              }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
+                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${group.sourceCoords?.lng ?? ""
+                                }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                               const metrics = groupMetrics.get(key) || {
                                 distance: 0,
                                 duration: { hours: 0, minutes: 0 }
@@ -369,12 +346,12 @@ const GroupsPage = () => {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
                                     <p className="text-muted-foreground">Estimated Distance</p>
-                                    <p className="font-medium">{formatDistance(metrics.distance)}</p>
+                                    <p className="font-medium">{formatDistanceKm(metrics.distance)}</p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Est. Duration</p>
                                     <p className="font-medium">
-                                      {formatDuration(metrics.duration.hours * 60 + metrics.duration.minutes)}
+                                      {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                                     </p>
                                   </div>
                                 </div>
@@ -494,9 +471,8 @@ const GroupsPage = () => {
                               </div>
                             </div>
                             {(() => {
-                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${
-                                group.sourceCoords?.lng ?? ""
-                              }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
+                              const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${group.sourceCoords?.lng ?? ""
+                                }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                               const metrics = groupMetrics.get(key) || {
                                 distance: 0,
                                 duration: { hours: 0, minutes: 0 }
@@ -505,12 +481,12 @@ const GroupsPage = () => {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
                                     <p className="text-muted-foreground">Estimated Distance</p>
-                                    <p className="font-medium">{formatDistance(metrics.distance)}</p>
+                                    <p className="font-medium">{formatDistanceKm(metrics.distance)}</p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Est. Duration</p>
                                     <p className="font-medium">
-                                      {formatDuration(metrics.duration.hours * 60 + metrics.duration.minutes)}
+                                      {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                                     </p>
                                   </div>
                                 </div>

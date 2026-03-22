@@ -58,6 +58,8 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
   const initialized = useRef(false);
   const [tagging, setTagging] = useState(false);
   const [space, setSpace] = useState(true);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchMessages = async (groupId: string): Promise<Message[]> => {
     const res = await axios.get(`${API_BASE_URL}/groups/messages/group/${groupId}`);
@@ -125,11 +127,29 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
       }
     });
 
+    socket.on("userTyping", ({ clerkName }) => {
+      setTypingUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(clerkName);
+        return newSet;
+      });
+    });
+
+    socket.on("userStoppedTyping", ({ clerkName }) => {
+      setTypingUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(clerkName);
+        return newSet;
+      });
+    });
+
     return () => {
       socket.off("connect", handleConnect);
       socket.off("reconnect", handleReconnect);
       socket.off("receiveMessage");
       socket.off("notification");
+      socket.off("userTyping");
+      socket.off("userStoppedTyping");
       socket.disconnect();
       initialized.current = false;
     };
@@ -173,6 +193,22 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
   const clickOnMentionName = (name: any) => {
     setNewMessage((prev) => prev + name + " ");
     setSpace(true);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    checkingMessage(e);
+
+    if (user && user.firstName) {
+      socket.emit("typing", { groupId, clerkName: user.firstName });
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit("stopTyping", { groupId, clerkName: user.firstName });
+      }, 2000);
+    }
   };
 
   return (
@@ -248,6 +284,17 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
         )}
       </div>
 
+      {typingUsers.size > 0 && (
+        <div className="px-4 py-2 text-xs text-muted-foreground italic flex items-center gap-1 animate-pulse">
+          {Array.from(typingUsers).join(", ")} {typingUsers.size === 1 ? 'is' : 'are'} typing
+          <span className="flex gap-0.5">
+            <span className="animate-bounce inline-block">.</span>
+            <span className="animate-bounce inline-block" style={{ animationDelay: '150ms' }}>.</span>
+            <span className="animate-bounce inline-block" style={{ animationDelay: '300ms' }}>.</span>
+          </span>
+        </div>
+      )}
+
       <div className="border-t pt-4 fix-bottom">
         <form
           className="flex gap-2"
@@ -259,7 +306,7 @@ function ChatTab({ groupId, members, onViewLocation }: ChatTabProps) {
           <Input
             placeholder="Type your message..."
             value={newMessage}
-            onChange={(e) => checkingMessage(e)}
+            onChange={handleInputChange}
           />
           <Button type="submit">
             <Send className="h-4 w-4" />

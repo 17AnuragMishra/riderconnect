@@ -3,6 +3,7 @@ import Group from '../models/Group.js';
 import Message from '../models/Message.js';
 import UserLocation from '../models/UserLocation.js';
 import Notification from '../models/Notification.js';
+import { geocode } from '../utils/geocode.js';
 
 const router = express.Router();
 
@@ -19,14 +20,23 @@ router.post('/create', async (req, res) => {
     clerkName,
   } = req.body;
 
-  const normalizedSourceCoords =
+  let normalizedSourceCoords =
     sourceCoords && Number.isFinite(sourceCoords.lat) && Number.isFinite(sourceCoords.lng)
       ? { lat: sourceCoords.lat, lng: sourceCoords.lng }
       : undefined;
-  const normalizedDestinationCoords =
+  let normalizedDestinationCoords =
     destinationCoords && Number.isFinite(destinationCoords.lat) && Number.isFinite(destinationCoords.lng)
       ? { lat: destinationCoords.lat, lng: destinationCoords.lng }
       : undefined;
+
+  if (!normalizedSourceCoords && source && typeof source === 'string' && source.trim()) {
+    const resolved = await geocode(source.trim());
+    if (resolved) normalizedSourceCoords = resolved;
+  }
+  if (!normalizedDestinationCoords && destination && typeof destination === 'string' && destination.trim()) {
+    const resolved = await geocode(destination.trim());
+    if (resolved) normalizedDestinationCoords = resolved;
+  }
 
   try {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();

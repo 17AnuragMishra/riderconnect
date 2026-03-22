@@ -48,7 +48,7 @@ import {
 import { useUser } from "@clerk/nextjs";
 import { useGroups } from "@/contexts/group-context";
 import { useToast } from "@/hooks/use-toast";
-import { fetchRouteMetrics } from "@/lib/mapUtils";
+import { fetchRouteMetrics, formatDistanceKm, formatDurationFromMinutes } from "@/lib/mapUtils";
 import { getBestCurrentLocation } from "@/lib/geolocation";
 import LocationPickerMap from "@/components/location/location-picker-map";
 import { formatLocationWithCoordinates } from "@/lib/locationParsing";
@@ -81,22 +81,8 @@ interface Group {
 
 interface PlaceSuggestion {
   display_name: string;
-}
-
-function formatDistance(distance: number): string {
-  if (distance < 1) {
-    return `${(distance * 1000).toFixed(0)}m`;
-  }
-  return `${distance.toFixed(1)}km`;
-}
-
-function formatDuration(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  if (hours > 0) {
-    return `${hours}h ${mins}m`;
-  }
-  return `${mins}m`;
+  lat: string;
+  lon: string;
 }
 
 export default function Dashboard() {
@@ -348,9 +334,8 @@ export default function Dashboard() {
     sourceCoordsValue?: Coords,
     destinationCoordsValue?: Coords
   ) => {
-    const key = `${source}-${destination}-${sourceCoordsValue?.lat ?? ""},${
-      sourceCoordsValue?.lng ?? ""
-    }-${destinationCoordsValue?.lat ?? ""},${destinationCoordsValue?.lng ?? ""}`;
+    const key = `${source}-${destination}-${sourceCoordsValue?.lat ?? ""},${sourceCoordsValue?.lng ?? ""
+      }-${destinationCoordsValue?.lat ?? ""},${destinationCoordsValue?.lng ?? ""}`;
 
     if (groupMetrics.has(key)) {
       return groupMetrics.get(key);
@@ -573,15 +558,15 @@ export default function Dashboard() {
               className="cursor-pointer"
               onClick={() => setRideTypeDialogOpen(true)}
             >
-                  <CardContent className="flex flex-col items-center justify-center h-[200px] gap-4">
-                    <IconContainer className="bg-white/20 p-3">
-                      <Plus className="h-8 w-8" />
-                    </IconContainer>
-                    <p className="font-medium text-lg">Create New Group Ride</p>
-                    <p className="text-white/80 text-sm text-center">
-                      Start a new journey with friends
-                    </p>
-                  </CardContent>
+              <CardContent className="flex flex-col items-center justify-center h-[200px] gap-4">
+                <IconContainer className="bg-white/20 p-3">
+                  <Plus className="h-8 w-8" />
+                </IconContainer>
+                <p className="font-medium text-lg">Create New Group Ride</p>
+                <p className="text-white/80 text-sm text-center">
+                  Start a new journey with friends
+                </p>
+              </CardContent>
             </CreateGroupCard>
 
             <Dialog open={rideTypeDialogOpen} onOpenChange={setRideTypeDialogOpen}>
@@ -678,7 +663,11 @@ export default function Dashboard() {
                             key={index}
                             onClick={() => {
                               setSource(place.display_name);
-                              setSourceCoords(null);
+                              if (place.lat && place.lon) {
+                                setSourceCoords({ lat: parseFloat(place.lat), lng: parseFloat(place.lon) });
+                              } else {
+                                setSourceCoords(null);
+                              }
                               setSuggestedSource([]);
                               setSourceError(""); // Clear error when selecting
                             }}
@@ -690,7 +679,7 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="destination">Destination (India only)</Label>                    
+                    <Label htmlFor="destination">Destination (India only)</Label>
                     <Input
                       id="destination"
                       placeholder="e.g., Delhi, Delhi"
@@ -730,7 +719,11 @@ export default function Dashboard() {
                               key={index}
                               onClick={() => {
                                 setDestination(place.display_name);
-                                setDestinationCoords(null);
+                                if (place.lat && place.lon) {
+                                  setDestinationCoords({ lat: parseFloat(place.lat), lng: parseFloat(place.lon) });
+                                } else {
+                                  setDestinationCoords(null);
+                                }
                                 setSuggestedDestination([]);
                                 setDestinationError(""); // Clear error when selecting
                               }}
@@ -985,9 +978,8 @@ export default function Dashboard() {
 
                       {/* Stats */}
                       {(() => {
-                        const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${
-                          group.sourceCoords?.lng ?? ""
-                        }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
+                        const key = `${group.source}-${group.destination}-${group.sourceCoords?.lat ?? ""},${group.sourceCoords?.lng ?? ""
+                          }-${group.destinationCoords?.lat ?? ""},${group.destinationCoords?.lng ?? ""}`;
                         const metrics = groupMetrics.get(key) || {
                           distance: 0,
                           duration: { hours: 0, minutes: 0 }
@@ -999,7 +991,7 @@ export default function Dashboard() {
                                 Estimated Distance
                               </p>
                               <p className="font-medium">
-                                {formatDistance(metrics.distance)}
+                                {formatDistanceKm(metrics.distance)}
                               </p>
                             </div>
                             <div>
@@ -1007,7 +999,7 @@ export default function Dashboard() {
                                 Est. Duration
                               </p>
                               <p className="font-medium">
-                                {formatDuration(metrics.duration.hours * 60 + metrics.duration.minutes)}
+                                {formatDurationFromMinutes(metrics.duration.hours * 60 + metrics.duration.minutes)}
                               </p>
                             </div>
                           </div>
